@@ -41,23 +41,20 @@ let rec find ctx t =
 let rec infer_type ctx tm =
   match tm with 
   | Varm x -> find ctx x
-  | Appm (fn, vari) -> (
+  | Appm (fn, inp) -> 
     let tfn = infer_type ctx fn in
-    let tvar = infer_type ctx vari in
-    match tfn with  (*if the type of the function is not imp, its an error*)
-    | Imp (a, b) -> (
-      match a with
-      | a' when a' = tvar -> b
-      | _ -> raise (Type_error) 
-    )
+    (match tfn with 
+    | Imp (a, b) ->
+      check_type ctx inp a;
+      b
     | _ -> raise (Type_error)
-  )
+    )
   | Absm (lam, tlam, fn) -> (
     let ctx_with_var = (lam, tlam) :: ctx in
     Imp (tlam, infer_type ctx_with_var fn)
   )
 
-let check_type ctx tm ty =
+and check_type ctx tm ty =
   match infer_type ctx tm with 
   | x when x = ty -> ()
   | _ -> raise (Type_error)
