@@ -57,25 +57,32 @@ let rec infer_type ctx tm =
     Imp (tlam, infer_type ctx_with_var fn)
   )
 
+let check_type ctx tm ty =
+  match infer_type ctx tm with 
+  | x when x = ty -> ()
+  | _ -> raise (Type_error)
+
 (** Test codes *)
- 
 let () = 
   
-  (*1.3*) 
+ (*Constants that are used in some tests*)
   let a = Var ("A") in
   let b = Var ("B") in
   let c = Var ("C") in
+  
+  let x = ("x") in
+  let f = ("f") in
+  let g = ("g") in
+  
+  (*1.3*) 
   print_endline (string_of_ty (Imp (Imp (a, b), Imp(a, c)))); 
   (*Input : (A → B) → A → C*) 
   (*Expected : ((A ⇒ B) ⇒ (A ⇒ C))*)
-  let x = ("x") in
-  let f = ("f") in
   print_endline (string_of_tm (Absm (f, Imp(a, b), Absm(x, a, Appm(Varm f, Varm x)))));
   (*Input : λ(f : A → B).λ(x : A).fx*)
   (*Expected : (λ (f : (A ⇒ B)) -> (λ (x : A) -> (f x)))*)
   
   (*1.4*)
-  let g = ("g") in
   let gfx = Absm (f, Imp(a, b), Absm(g, Imp(b, c), Absm(x, a, Appm(Varm g, Appm(Varm f, Varm x))))) in 
   let ctx = [] in
   print_endline (string_of_ty (infer_type ctx gfx));
@@ -84,19 +91,53 @@ let () =
   let tyer3 = Absm (f, Imp(a, b), Absm(x, b, Appm(Varm f, Varm x))) in
   try 
     let ctx = [] in
-    print_endline (string_of_ty (infer_type ctx tyer1));
+    let temp = infer_type ctx tyer1 in
+    print_endline ("This should be an error");
   with
   | Type_error -> print_endline("Type Error with tyer1");
   try 
     let ctx = [] in
-    print_endline (string_of_ty (infer_type ctx tyer2));
+    let temp = infer_type ctx tyer2 in
+    print_endline ("This should be an error");
   with
   | Type_error -> print_endline("Type Error with tyer2");
 
  try 
     let ctx = [] in
-    print_endline (string_of_ty (infer_type ctx tyer3));
+    let temp = (infer_type ctx tyer3) in
+    print_endline("no problems");
   with
   | Type_error -> print_endline("Type Error with tyer3");
   (*Expecting gfx to pass and Tyer = Type error to fail*)
+
+  (*1.5*)
+  let ctx = [] in
+  let checkty = Absm(x, a, Varm x) in
+  let temp = check_type ctx checkty (Imp(a, a)) in
+  print_endline ("check is type A -> A");
+ 
+  try 
+    let ctx = [] in
+    let temp = check_type ctx checkty (Imp(b, b)) in 
+    print_endline ("check has type B -> B (this should be an error)");
+  with
+  | Type_error -> print_endline("check is not type B -> B");
+ 
+  try 
+    let ctx = [] in
+    let temp = check_type ctx (Varm x) a in 
+    print_endline ("x has type A (this should be an error)");
+  with
+  | Type_error -> print_endline("x is not type A");
+ 
+
+
+
+
+
+
+
+
+
+
 
