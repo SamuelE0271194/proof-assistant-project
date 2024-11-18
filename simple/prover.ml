@@ -1,4 +1,6 @@
 open Expr
+
+(*Part 1*)
 (*
 (** Type variables. *)
 type tvar = string
@@ -224,7 +226,7 @@ let () =
                       Falm (Appm (Sndm (Varm x), Fstm (Varm x)), b)) in
   print_endline (string_of_ty (infer_type [] a_and_a_false));  
 *)
-
+(*
 let () =
   let l = [
     "A => B";
@@ -265,10 +267,80 @@ let () =
        Printf.printf
          "the parsing of %S is %s\n%!" s (string_of_tm (tm_of_string s))
     ) l
+*)
 
+(*Part 2*)
+let rec string_of_ctx ctx =
+  match ctx with 
+  | [] -> ""
+  | (var, ty) :: [] -> var ^ " : " ^ string_of_ty ty
+  | (var, ty) :: t -> var ^ " : " ^ string_of_ty ty ^ " , " ^ string_of_ctx t
 
+type sequent = context * ty
 
+let string_of_seq seq =
+  match seq with
+  | (ctx, ty) -> string_of_ctx ctx ^ " |- " ^ string_of_ty ty
+(*Tests for string of ctx and seq
+let () = 
+  let a = Var "A" in 
+  let b = Var "B" in
+  let c = Var "C" in
 
+  let ctx : context = [
+    ("x", Imp(a, b)); ("y", Conj(a, b)); ("Z", Truth);
+  ] in
+  print_endline (string_of_ctx ctx);
+
+  let seq = (ctx, c) in
+  print_endline (string_of_seq seq);
+*)
+
+(*Copied from proving.ml*)
+let rec prove env a =
+  print_endline (string_of_seq (env,a));
+  print_string "? "; flush_all ();
+  let error e = print_endline e; prove env a in
+  let cmd, arg =
+    let cmd = input_line stdin in
+    let n = try String.index cmd ' ' with Not_found -> String.length cmd in
+    let c = String.sub cmd 0 n in
+    let a = String.sub cmd n (String.length cmd - n) in
+    let a = String.trim a in
+    c, a
+  in
+  match cmd with
+  | "intro" ->
+     (
+       match a with
+       | Imp (a, b) ->
+          if arg = "" then error "Please provide an argument for intro." else
+            let x = arg in
+            print_endline ("intro " ^ x); 
+            let t = prove ((x,a)::env) b in
+            Absm (x, a, t);
+       | _ ->
+          error "Don't know how to introduce this."
+     )
+  | "exact" ->
+     let t = tm_of_string arg in
+     if infer_type env t <> a then error "Not the right type." else
+      let _ = print_endline ("exact " ^ string_of_tm t) in
+      t;
+  | cmd -> error ("Unknown command: " ^ cmd)
+         
+let () =
+  print_endline "Please enter the formula to prove:";
+  let a = input_line stdin in
+  let a = ty_of_string a in
+  print_endline "Let's prove it.";
+  let t = prove [] a in
+  print_endline "done.";
+  print_endline "Proof term is";
+  print_endline (string_of_tm t);
+  print_string  "Typechecking... "; flush_all ();
+  assert (infer_type [] t = a);
+  print_endline "ok."
 
 
 
