@@ -1,3 +1,5 @@
+open Expr
+(*
 (** Type variables. *)
 type tvar = string
 
@@ -6,12 +8,13 @@ type var = string
 
 (** Types. *)
 type ty =
-  | Var of var
+  | Var of tvar
   | Imp of ty * ty
   | Conj of ty * ty
   | Truth
   | Disj of ty * ty
   | False
+  | Unit
 
 (** lambda terms *)
 type tm =
@@ -25,7 +28,12 @@ type tm =
   | Rcasem of tm * ty
   | Lcasem of tm * ty
   | Trum
-  | Falm of tm
+  | Falm of tm * ty
+  | Unitm
+*)
+
+let ty_of_string s = Parser.ty Lexer.token (Lexing.from_string s)
+let tm_of_stirng s = Parser.tm Lexer.token (Lexing.from_string s)
 
 let rec string_of_ty typ =
   match typ with
@@ -35,6 +43,7 @@ let rec string_of_ty typ =
   | Disj (a, b) -> "(" ^ string_of_ty a ^ " \\/ " ^ string_of_ty b ^ ")"
   | Truth -> "T"
   | False -> "⊥"
+  | Unit -> "()"
 
 let rec string_of_tm tmp =
   match tmp with
@@ -51,7 +60,8 @@ let rec string_of_tm tmp =
   | Rcasem (x, a) -> "(incl R, ty:" ^ string_of_ty a ^ " term: " ^ string_of_tm x ^ ")"
   | Lcasem (x, a) -> "(incl L, ty:" ^ string_of_ty a ^ " term: " ^ string_of_tm x ^ ")"
   | Trum -> "T"
-  | Falm a -> "⊥"
+  | Falm (tm, ty) -> "(" ^ string_of_tm tm ^ " = " ^ string_of_ty ty ^ ")"
+  | Unitm -> string_of_ty Unit
 
 type context = (var * ty) list
 
@@ -71,9 +81,10 @@ let rec infer_type ctx tm =
   | Appm (fn, inp) -> 
     let tfn = infer_type ctx fn in
     (match tfn with 
-    | Imp (a, b) ->
-      check_type ctx inp a;
-      b
+    | Imp (a, b) -> (
+      match check_type ctx inp a with (*just trying to catch an error*)
+      | _ -> b
+    )
     | _ -> raise (Type_error)
     )
   | Absm (lam, tlam, fn) -> (
@@ -84,13 +95,13 @@ let rec infer_type ctx tm =
   | Fstm fst -> (
     let tfst = infer_type ctx fst in
     match tfst with 
-    | Conj (a, b) -> a
+    | Conj (a, _) -> a
     | _ -> raise (Type_error)
   )
   | Sndm snd -> (
     let tsnd = infer_type ctx snd in
     match tsnd with 
-    | Conj (a, b) -> b
+    | Conj (_, b) -> b
     | _ -> raise (Type_error)
   )
   | Trum -> Truth
@@ -109,17 +120,19 @@ let rec infer_type ctx tm =
     Disj (infer_type ctx tm, ty)
   | Rcasem (tm, ty) -> 
     Disj (ty, infer_type ctx tm)
-  | Falm tm -> 
+  | Falm (tm, ty) -> (
     match infer_type ctx tm with
-    | False -> Var "Anything"
+    | False -> ty
     | _ -> raise (Type_error)
+  )
+  | Unitm -> Unit
 
 and check_type ctx tm ty =
   match tm with 
-  | Falm t -> check_type ctx t False
+  | Falm (tm, _) -> check_type ctx tm False
   | _ ->
     match infer_type ctx tm with 
-    | x when x = ty -> ()
+    | x when x = ty -> Unitm
     | _ -> raise (Type_error)
 
 (** Test codes *)
@@ -173,20 +186,20 @@ let () =
   (*1.5*)
   let ctx = [] in
   let checkty = Absm(x, a, Varm x) in
-  check_type ctx checkty (Imp(a, a));
-  print_endline ("check is type A -> A");
+  let temp = check_type ctx checkty (Imp(a, a)) in
+  print_endline ("check is type A -> A" ^ string_of_tm temp);
  
   try 
     let ctx = [] in
-    check_type ctx checkty (Imp(b, b));
-    print_endline ("check has type B -> B (this should be an error)");
+    let temp = check_type ctx checkty (Imp(b, b)) in
+    print_endline ("check has type B -> B (this should be an error)" ^ string_of_tm temp);
   with
   | Type_error -> print_endline("check is not type B -> B");
  
   try 
     let ctx = [] in
-    check_type ctx (Varm x) a;
-    print_endline ("x has type A (this should be an error)");
+    let temp = check_type ctx (Varm x) a in 
+    print_endline ("x has type A (this should be an error)" ^ string_of_tm temp);
   with
   | Type_error -> print_endline("x is not type A"); 
 
@@ -207,7 +220,7 @@ let () =
 
   (*1.11*)
   let a_and_a_false = Absm (x, Conj(a, Imp(a, False)), 
-                      Falm (Appm (Sndm (Varm x), Fstm (Varm x)))) in
+                      Falm (Appm (Sndm (Varm x), Fstm (Varm x)), b)) in
   print_endline (string_of_ty (infer_type [] a_and_a_false));  
   (*You could get the final bit to say B instead of Anything,
    but you have force the output of Falm -> the term needs a type too*)
