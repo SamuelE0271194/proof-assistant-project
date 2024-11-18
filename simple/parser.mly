@@ -52,3 +52,4 @@ stm:
   | LEFT LPAR tm COMMA ty RPAR   { Lcasem ($3, $5) }
   | RIGHT LPAR tm COMMA ty RPAR  { Rcasem ($3, $5) }
   | ABSURD LPAR tm COMMA ty RPAR { Falm ($3, $5) }
+

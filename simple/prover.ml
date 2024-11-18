@@ -33,34 +33,34 @@ type tm =
 *)
 
 let ty_of_string s = Parser.ty Lexer.token (Lexing.from_string s)
-let tm_of_stirng s = Parser.tm Lexer.token (Lexing.from_string s)
+let tm_of_string s = Parser.tm Lexer.token (Lexing.from_string s)
 
 let rec string_of_ty typ =
   match typ with
   | Var y -> y
-  | Imp (a, b) -> "(" ^ string_of_ty a ^ " ⇒ " ^ string_of_ty b ^ ")"
+  | Imp (a, b) -> "(" ^ string_of_ty a ^ " => " ^ string_of_ty b ^ ")"
   | Conj (a, b) -> "(" ^ string_of_ty a ^ " /\\ " ^ string_of_ty b ^ ")"
   | Disj (a, b) -> "(" ^ string_of_ty a ^ " \\/ " ^ string_of_ty b ^ ")"
   | Truth -> "T"
-  | False -> "⊥"
+  | False -> "_"
   | Unit -> "()"
 
 let rec string_of_tm tmp =
   match tmp with
   | Varm y -> y
   | Appm (a, b) -> "(" ^ string_of_tm a ^ " " ^ string_of_tm b ^ ")" 
-  | Absm (a, b, c) -> "(λ (" ^ a ^ " : " ^ string_of_ty b ^ ") -> " ^ string_of_tm c ^ ")"
-  | Fstm a -> string_of_tm a
-  | Sndm b -> string_of_tm b
-  | Pairm (a, b) -> "(" ^ string_of_tm a ^ " /\\ " ^ string_of_tm b ^ ")"
+  | Absm (a, b, c) -> "(fun (" ^ a ^ " : " ^ string_of_ty b ^ ") -> " ^ string_of_tm c ^ ")"
+  | Fstm a -> "fst(" ^ string_of_tm a ^ ")"
+  | Sndm b -> "snd(" ^ string_of_tm b ^ ")"
+  | Pairm (a, b) -> "(" ^ string_of_tm a ^ " , " ^ string_of_tm b ^ ")"
   | Casem (t, x, u, y, v) -> 
-    "case(" ^ string_of_tm t ^ ", " ^
-     x ^ "->" ^ string_of_tm u ^ ", " ^
-      y ^ "->" ^ string_of_tm v ^ ")"
-  | Rcasem (x, a) -> "(incl R, ty:" ^ string_of_ty a ^ " term: " ^ string_of_tm x ^ ")"
-  | Lcasem (x, a) -> "(incl L, ty:" ^ string_of_ty a ^ " term: " ^ string_of_tm x ^ ")"
+    "case " ^ string_of_tm t ^ " of " ^
+     x ^ " -> " ^ string_of_tm u ^ " | " ^
+      y ^ " -> " ^ string_of_tm v 
+  | Rcasem (x, a) -> "right(" ^ string_of_ty a ^ "," ^ string_of_tm x ^ ")"
+  | Lcasem (x, a) -> "left(" ^ string_of_tm x ^ "," ^ string_of_ty a ^ ")"
   | Trum -> "T"
-  | Falm (tm, ty) -> "(" ^ string_of_tm tm ^ " = " ^ string_of_ty ty ^ ")"
+  | Falm (tm, ty) -> "absured(" ^ string_of_tm tm ^ "," ^ string_of_ty ty ^ ")"
   | Unitm -> string_of_ty Unit
 
 type context = (var * ty) list
@@ -136,6 +136,7 @@ and check_type ctx tm ty =
     | _ -> raise (Type_error)
 
 (** Test codes *)
+(*
 let () = 
   
  (*Constants that are used in some tests*)
@@ -222,11 +223,48 @@ let () =
   let a_and_a_false = Absm (x, Conj(a, Imp(a, False)), 
                       Falm (Appm (Sndm (Varm x), Fstm (Varm x)), b)) in
   print_endline (string_of_ty (infer_type [] a_and_a_false));  
-  (*You could get the final bit to say B instead of Anything,
-   but you have force the output of Falm -> the term needs a type too*)
+*)
 
+let () =
+  let l = [
+    "A => B";
+    "A ⇒ B";
+    "A /\\ B";
+    "A ∧ B";
+    "T";
+    "A \\/ B";
+    "A ∨ B";
+    "_";
+    "not A";
+    "¬ A";
+  ]
+  in
+  List.iter
+    (fun s ->
+       Printf.printf
+         "the parsing of %S is %s\n%!" s (string_of_ty (ty_of_string s))
+    ) l
 
-
+let () =
+  let l = [
+    "t u v";
+    "fun (x : A) -> t";
+    "λ (x : A) → t";
+    "(t , u)";
+    "fst(t)";
+    "snd(t)";
+    "()";
+    "case t of x -> u | y -> v";
+    "left(t,B)";
+    "right(A,t)";
+    "absurd(t,A)"
+  ]
+  in
+  List.iter
+    (fun s ->
+       Printf.printf
+         "the parsing of %S is %s\n%!" s (string_of_tm (tm_of_string s))
+    ) l
 
 
 
