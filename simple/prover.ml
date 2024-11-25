@@ -150,7 +150,7 @@ let string_of_seq seq =
   match seq with
   | (ctx, ty) -> string_of_ctx ctx ^ " |- " ^ string_of_ty ty
 
-(*Tests for string of ctx and seq
+(* Tests
 let () = 
   let a = Var "A" in 
   let b = Var "B" in
@@ -192,10 +192,28 @@ let rec prove env a =
           error "Don't know how to introduce this."
      )
   | "exact" ->
+    (
      let t = tm_of_string arg in
      if infer_type env t <> a then error "Not the right type." else
       let _ = print_endline ("exact " ^ string_of_tm t) in
       t;
+    )
+  | "elim" ->
+    (
+    match infer_type env (tm_of_string arg) with
+    | Imp (input, output) -> 
+      (
+      match a with 
+      | x when x = input -> 
+        print_endline ("elim " ^ arg);
+        let t = prove env output in
+        t;
+      | _ -> 
+        error "Don't know how to eliminate with this." 
+      )
+    | _ -> 
+      error "Don't know how to eliminate this."
+    )
   | cmd -> error ("Unknown command: " ^ cmd)
          
 let () =

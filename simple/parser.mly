@@ -29,6 +29,7 @@ ty:
   | NOT ty    { Imp ($2, False) }
   | TRUE      { Truth }
   | FALSE     { False }
+  | LPAR ty RPAR { $2 }
 
 /* A term */
 tm:

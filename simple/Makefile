@@ -5,3 +5,6 @@ all:
 
 test:
 	cat k.proof | dune exec ./prover.exe
+
+manual:
+	dune exec ./prover.exe
