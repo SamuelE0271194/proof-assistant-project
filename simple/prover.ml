@@ -200,14 +200,15 @@ let rec prove env a =
     )
   | "elim" ->
     (
-    match infer_type env (tm_of_string arg) with
+    let t = tm_of_string arg in
+    match infer_type env t with
     | Imp (input, output) -> 
       (
       match a with 
-      | x when x = input -> 
+      | x when x = output -> 
         print_endline ("elim " ^ arg);
-        let t = prove env output in
-        t;
+        let input = prove env input in
+        Appm (t, input);
       | _ -> 
         error "Don't know how to eliminate with this." 
       )

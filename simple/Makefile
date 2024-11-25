@@ -8,3 +8,7 @@ test:
 
 manual:
 	dune exec ./prover.exe
+
+proof: 
+	@read -p "Proof filename : " filename; \
+	cat $$filename | dune exec ./prover.exe
