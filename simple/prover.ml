@@ -1,39 +1,5 @@
 open Expr
 
-(*Part 1*)
-(*
-(** Type variables. *)
-type tvar = string
-
-(** Term variables. *)
-type var = string
-
-(** Types. *)
-type ty =
-  | Var of tvar
-  | Imp of ty * ty
-  | Conj of ty * ty
-  | Truth
-  | Disj of ty * ty
-  | False
-  | Unit
-
-(** lambda terms *)
-type tm =
-  | Varm of var
-  | Appm of tm * tm
-  | Absm of var * ty * tm  (* the middle term is a type not a lambda term*)
-  | Pairm of tm * tm (*Conjunction*)
-  | Fstm of tm
-  | Sndm of tm
-  | Casem of tm * var * tm * var *tm (*Disjunction*)
-  | Rcasem of tm * ty
-  | Lcasem of tm * ty
-  | Trum
-  | Falm of tm * ty
-  | Unitm
-*)
-
 let ty_of_string s = Parser.ty Lexer.token (Lexing.from_string s)
 let tm_of_string s = Parser.tm Lexer.token (Lexing.from_string s)
 
@@ -142,7 +108,7 @@ let rec string_of_ctx ctx =
   match ctx with 
   | [] -> ""
   | (var, ty) :: [] -> var ^ " : " ^ string_of_ty ty
-  | (var, ty) :: t -> var ^ " : " ^ string_of_ty ty ^ " , " ^ string_of_ctx t
+  | (var, ty) :: t -> string_of_ctx t ^ " , " ^ var ^ " : " ^ string_of_ty ty 
 
 type sequent = context * ty
 
@@ -179,24 +145,78 @@ let rec prove env a =
     c, a
   in
   match cmd with
-  | "intro" ->
-     (
-       match a with
-       | Imp (a, b) ->
-          if arg = "" then error "Please provide an argument for intro." else
-            let x = arg in
-            print_endline ("intro " ^ x); 
-            let t = prove ((x,a)::env) b in
-            Absm (x, a, t);
-       | _ ->
-          error "Don't know how to introduce this."
-     )
   | "exact" ->
     (
-     let t = tm_of_string arg in
-     if infer_type env t <> a then error "Not the right type." else
+    let t = tm_of_string arg in
+    if infer_type env t <> a then error "Not the right type." else
       let _ = print_endline ("exact " ^ string_of_tm t) in
       t;
+    )
+  | "intro" ->
+    (
+    match a with
+    | Imp (a, b) ->
+      if arg = "" then error "Please provide an argument for intro." else
+        let x = arg in
+        print_endline ("intro " ^ x); 
+        let t = prove ((x,a)::env) b in
+        Absm (x, a, t);
+    | Conj (a, b) -> 
+      print_endline ("intro ");
+      let l = prove env a in
+      let r = prove env b in
+      Pairm(l, r);
+    | Truth ->
+      print_endline ("intro truth");
+      Trum;
+    | _ ->
+       error "Don't know how to introduce this."
+    )
+  | "fst" ->
+    (
+    let t = tm_of_string arg in
+    match infer_type env t with
+    | Conj (l, _) ->
+      let x = arg in
+      print_endline ("fst " ^ x);
+      if l <> a then
+        let t = prove ((x, l)::env) a in
+        Fstm t;
+      else 
+        Fstm t;
+    | _ -> error "Don't know how to use first here"
+    )
+  | "snd" ->
+    (
+    let t = tm_of_string arg in
+    match infer_type env t with
+    | Conj (_, r) ->
+      let x = arg in
+      print_endline ("snd " ^ x);
+      if r <> a then
+        let t = prove ((x, r)::env) a in
+        Sndm t;
+      else 
+        Sndm t;
+    | _ -> error "Don't know how to use second here"
+    )
+  | "left" ->
+    (
+    match a with
+    | Disj(l, r) ->
+      print_endline("left ");
+      let t = prove env l in
+      Lcasem (t, r); 
+    | _ -> error "Don't know how to use left here"
+    )
+  | "right" ->
+    (
+    match a with
+    | Disj(l, r) ->
+      print_endline("right ");
+      let t = prove env r in
+      Rcasem (t, l); 
+    | _ -> error "Don't know how to use right here"
     )
   | "elim" ->
     (
@@ -212,8 +232,24 @@ let rec prove env a =
       | _ -> 
         error "Don't know how to eliminate with this." 
       )
+    | Disj (l, r) ->
+      print_endline ("elim " ^ arg);
+      let left = prove ((arg, l)::env) a in
+      let right = prove ((arg, r)::env) a in
+      Casem (tm_of_string arg, arg, left, arg, right)
+    | False -> 
+      print_endline ("elim " ^ arg);
+      Falm (t, a)
     | _ -> 
       error "Don't know how to eliminate this."
+    )
+  | "cut" ->
+    (
+    let t = ty_of_string arg in
+    print_endline ("cut " ^ arg);
+    let a = prove env (Imp (t, a)) in
+    let t = prove env t in
+    Appm(a, t);
     )
   | cmd -> error ("Unknown command: " ^ cmd)
          
