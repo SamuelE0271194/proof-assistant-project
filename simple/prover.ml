@@ -200,6 +200,15 @@ let rec prove env a =
     | Truth ->
       print_endline ("intro truth");
       Trum;
+    | Nat ->
+      if arg = "0" then (
+        print_endline ("intro 0");
+        Zero;
+      ) else if arg = "suc" then (
+        print_endline ("intro suc");
+        let n = prove env a in
+        Suc(n);
+      ) else error "Don't know how to introduce this."
     | _ ->
        error "Don't know how to introduce this."
     )
@@ -251,7 +260,8 @@ let rec prove env a =
     )
   | "elim" ->
     (
-    let t = tm_of_string arg in
+    let cases = String.split_on_char ' ' arg in
+    let t = tm_of_string (List.nth cases 0) in
     match infer_type env t with
     | Imp (input, output) -> 
       (
@@ -271,6 +281,20 @@ let rec prove env a =
     | False -> 
       print_endline ("elim " ^ arg);
       Falm (t, a)
+    | Nat ->
+      if List.length cases <> 5 then error "Not enough arguments" else (
+        print_endline ("elim " ^ arg); (*Input [t, base, x, y, rec]*)
+        let base = tm_of_string(List.nth cases 1) in
+        let tyb = infer_type env base in
+        let pf_base = prove env tyb in
+
+        let env1 = (List.nth cases 2, Nat) :: env in
+        let env1 = (List.nth cases 3, tyb) :: env1 in
+        let recur = tm_of_string(List.nth cases 4) in
+        let pf_recur = prove env1 (infer_type env1 recur) in
+
+        Rec (t, pf_base, (List.nth cases 2), (List.nth cases 3), pf_recur);
+      )
     | _ -> 
       error "Don't know how to eliminate this."
     )
