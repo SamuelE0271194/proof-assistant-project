@@ -12,6 +12,7 @@ let rec string_of_ty typ =
   | Truth -> "T"
   | False -> "_"
   | Unit -> "()"
+  | Nat -> "Nat"
 
 let rec string_of_tm tmp =
   match tmp with
@@ -30,6 +31,12 @@ let rec string_of_tm tmp =
   | Trum -> "T"
   | Falm (tm, ty) -> "absured(" ^ string_of_tm tm ^ "," ^ string_of_ty ty ^ ")"
   | Unitm -> string_of_ty Unit
+  | Zero -> "Zero"
+  | Suc x -> "Suc " ^ string_of_tm x
+  | Rec (t, u, x, y, v) -> 
+    "Rec(" ^ string_of_tm t ^ ", " ^ string_of_tm u ^ ", " ^
+      x ^ y ^ " -> " ^ string_of_tm v
+
 
 type context = (var * ty) list
 
@@ -94,6 +101,30 @@ let rec infer_type ctx tm =
     | _ -> raise (Type_error)
   )
   | Unitm -> Unit
+  | Zero -> Nat
+  | Suc x -> (
+    match infer_type ctx x with
+    | Nat -> Nat
+    | _ -> raise (Type_error)
+  )
+  | Rec (t, u, x, y, v) -> (
+    match t with
+    | Zero -> infer_type ctx u
+    | Suc t -> ( 
+      match infer_type ctx t with
+      | Nat -> (
+        let ctx1 = (x, Nat) :: ctx in
+        let tyy = infer_type ctx1 (Rec (t, u, x, y, v)) in
+        let ctx1 = (y, tyy ) :: ctx1 in
+        match infer_type ctx1 v with
+        | w when w = infer_type ctx u -> w
+        | _ -> raise (Type_error)
+      )
+      | _ -> raise (Type_error)
+    )
+    | _ -> raise (Type_error)
+  )
+
 
 and check_type ctx tm ty =
   match tm with 

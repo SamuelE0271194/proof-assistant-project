@@ -13,6 +13,7 @@ type ty =
   | Disj of ty * ty
   | False
   | Unit
+  | Nat
 
 (** lambda terms *)
 type tm =
@@ -28,3 +29,6 @@ type tm =
   | Trum
   | Falm of tm * ty
   | Unitm
+  | Zero
+  | Suc of tm
+  | Rec of tm * tm * var * var * tm (*t, u, xy -> v --see notes 4.3.6*)
