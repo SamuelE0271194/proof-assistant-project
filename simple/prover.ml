@@ -32,10 +32,10 @@ let rec string_of_tm tmp =
   | Falm (tm, ty) -> "absured(" ^ string_of_tm tm ^ "," ^ string_of_ty ty ^ ")"
   | Unitm -> string_of_ty Unit
   | Zero -> "Zero"
-  | Suc x -> "Suc " ^ string_of_tm x
+  | Suc x -> "Suc(" ^ string_of_tm x ^ ")"
   | Rec (t, u, x, y, v) -> 
     "Rec(" ^ string_of_tm t ^ ", " ^ string_of_tm u ^ ", " ^
-      x ^ y ^ " -> " ^ string_of_tm v
+      "(" ^ x ^ "," ^ y ^ ")-> " ^ string_of_tm v
 
 
 type context = (var * ty) list
@@ -105,24 +105,27 @@ let rec infer_type ctx tm =
   | Suc x -> (
     match infer_type ctx x with
     | Nat -> Nat
-    | _ -> raise (Type_error)
+    | _ -> (
+      print_endline("here"); 
+      raise (Type_error)
+    )
   )
   | Rec (t, u, x, y, v) -> (
-    match t with
-    | Zero -> infer_type ctx u
-    | Suc t -> ( 
-      match infer_type ctx t with
-      | Nat -> (
-        let ctx1 = (x, Nat) :: ctx in
-        let tyy = infer_type ctx1 (Rec (t, u, x, y, v)) in
-        let ctx1 = (y, tyy ) :: ctx1 in
-        match infer_type ctx1 v with
-        | w when w = infer_type ctx u -> w
-        | _ -> raise (Type_error)
-      )
+    match infer_type ctx t with
+    | Nat -> ( 
+      let tyu = infer_type ctx u in
+
+      let ctx1 = (x, Nat) :: ctx in
+      let ctx1 = (y, tyu) :: ctx1 in
+
+      match infer_type ctx1 v with
+      | w when w = tyu -> w
       | _ -> raise (Type_error)
     )
-    | _ -> raise (Type_error)
+    | _ -> (
+      print_endline("t is not a Nat");
+      raise (Type_error)
+    )
   )
 
 
@@ -132,7 +135,10 @@ and check_type ctx tm ty =
   | _ ->
     match infer_type ctx tm with 
     | x when x = ty -> Unitm
-    | _ -> raise (Type_error)
+    | _ -> (
+      (*print_endline("missmatch with " ^ string_of_tm tm ^ " and " ^ string_of_ty ty);*)
+      raise (Type_error)
+    )
 
 (*Part 2*)
 let rec string_of_ctx ctx =
@@ -201,8 +207,8 @@ let rec prove env a =
       print_endline ("intro truth");
       Trum;
     | Nat ->
-      if arg = "0" then (
-        print_endline ("intro 0");
+      if arg = "zero" then (
+        print_endline ("intro zero");
         Zero;
       ) else if arg = "suc" then (
         print_endline ("intro suc");
@@ -282,18 +288,19 @@ let rec prove env a =
       print_endline ("elim " ^ arg);
       Falm (t, a)
     | Nat ->
-      if List.length cases <> 5 then error "Not enough arguments" else (
+      if List.length cases < 4 then error "Too little arguments" else (
         print_endline ("elim " ^ arg); (*Input [t, base, x, y, rec]*)
+        
         let base = tm_of_string(List.nth cases 1) in
         let tyb = infer_type env base in
-        let pf_base = prove env tyb in
-
         let env1 = (List.nth cases 2, Nat) :: env in
         let env1 = (List.nth cases 3, tyb) :: env1 in
         let recur = tm_of_string(List.nth cases 4) in
+       
+        let pf_base = prove env tyb in
         let pf_recur = prove env1 (infer_type env1 recur) in
 
-        Rec (t, pf_base, (List.nth cases 2), (List.nth cases 3), pf_recur);
+        Rec (t, pf_base, List.nth cases 2, List.nth cases 3, pf_recur);
       )
     | _ -> 
       error "Don't know how to eliminate this."

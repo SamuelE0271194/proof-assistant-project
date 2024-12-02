@@ -1,0 +1,7 @@
+Nat => Nat => Nat
+intro a
+intro b
+elim a b x y Suc(y)
+exact b
+intro suc
+exact y

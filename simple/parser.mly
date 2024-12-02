@@ -38,7 +38,7 @@ tm:
   | atm                                    { $1 }
   | FUN LPAR IDENT COLON ty RPAR TO tm     { Absm ($3, $5, $8) }
   | CASE tm OF IDENT TO tm BAR IDENT TO tm { Casem ($2, $4, $6, $8, $10) }
-  | REC LPAR tm tm IDENT IDENT TO tm RPAR  { Rec ($3, $4, $5, $6, $8) }
+  | REC LPAR tm COMMA tm COMMA IDENT IDENT TO tm RPAR  { Rec ($3, $5, $7, $8, $10) }
 
 /* An application */
 atm:

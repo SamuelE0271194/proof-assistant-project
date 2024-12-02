@@ -1,1 +1,0 @@
-Rec(A, 0, X, Y, Suc (X) => Y)
