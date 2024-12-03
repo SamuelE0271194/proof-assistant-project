@@ -288,7 +288,7 @@ let rec prove env a =
       print_endline ("elim " ^ arg);
       Falm (t, a)
     | Nat ->
-      if List.length cases < 4 then error "Too little arguments" else (
+      if List.length cases < 4 then error "Too little arguments (provide term, base case, var x, var y, recursion fn)" else (
         print_endline ("elim " ^ arg); (*Input [t, base, x, y, rec]*)
         
         let base = tm_of_string(List.nth cases 1) in
