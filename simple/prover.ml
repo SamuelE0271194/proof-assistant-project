@@ -296,9 +296,9 @@ let rec prove env a =
         let env1 = (List.nth cases 2, Nat) :: env in
         let env1 = (List.nth cases 3, tyb) :: env1 in
         let recur = tm_of_string(List.nth cases 4) in
-        print_endline("Proof of base case: ");
+        print_endline("Proof of base case (" ^ List.nth cases 1 ^ "): ");
         let pf_base = prove env tyb in
-        print_endline("Proof of recursion function: ");
+        print_endline("Proof of recursion function (" ^ List.nth cases 4 ^ "): ");
         let pf_recur = prove env1 (infer_type env1 recur) in
 
         Rec (t, pf_base, List.nth cases 2, List.nth cases 3, pf_recur);
