@@ -1,20 +1,6 @@
-(** Variables. *)
-type var = string
+open Expr
 
-(** Expressions. *)
-type expr =
-  | Type
-  | Var of var
-  | App of expr * expr
-  | Abs of var * expr * expr
-  | Pi of var * expr * expr
-  | Nat
-  | Z
-  | S of expr
-  | Ind of expr * expr * expr * expr 
-  | Eq of expr * expr
-  | Refl of expr
-  | J of expr * expr * expr * expr * expr
+let of_string s = Parser.expr Lexer.token (Lexing.from_string s)
 
 let rec to_string exp =
   match exp with
@@ -70,7 +56,7 @@ exception Type_error of string
 
 let rec in_ctx ctx var =
   match ctx with
-  | [] -> raise (Type_error ("Not in ctx"))
+  | [] -> raise (Type_error (" Not in ctx " ^ var))
   | (x, (exp1, exp2)) :: l -> (
     if var = x then match exp2 with
       | Some x -> x
@@ -84,10 +70,16 @@ let rec normalize ctx exp =
   | Var x -> in_ctx ctx x
   | App (exA, exB) -> (
     match exA with
-    | Abs (y, _, exBbs) -> subst y (normalize ctx exB) (normalize ctx exBbs) (*assumed that its well typed, so don't care about type of y (exAbs)*)
+    | Abs (y, exAbs, exBbs) -> (
+      let ctx1 = (y,(exAbs,None)) :: ctx in
+      subst y (normalize ctx1 exB) (normalize ctx1 exBbs) (*assumed that its well typed, so don't care about type of y (exAbs)*)
+    )
     | _ -> App (normalize ctx exA, normalize ctx exB)
   )
-  | Abs (y, exA, exB) -> Abs (y, normalize ctx exA, normalize ctx exB)
+  | Abs (y, exA, exB) -> (
+    let ctx1 = (y,(exA,None)) :: ctx in
+    Abs (y, normalize ctx1 exA, normalize ctx1 exB)
+  )
   | Pi (y, exA, exB) -> Pi (y, normalize ctx exA, normalize ctx exB)
   | _ -> Type (*Not yet implemented*)
 
@@ -105,6 +97,7 @@ let rec alpha exp1 exp2 =
     let f22 = subst z (Var y) f1 in
     (alpha e1 f12) && (alpha e2 f22)
   )
+  | (Type, Type) -> true
   | _ -> false (*prob not yet implemented*)
 
 let conv ctx exp1 exp2 =
@@ -115,10 +108,78 @@ let rec infer ctx exp =
   | Type -> Type
   | Var x -> in_ctx ctx x (*The type error is thrown from in_ctx*)
   | App (exA, exB) -> App (infer ctx exA, infer ctx exB)
-  | Abs (y, exA, exB) -> Pi (y, infer ctx exA, infer ctx exB)
-  | Pi (_, _, _) -> Type
-  | _ -> raise (Type_error "not yet implemented")
+  | Abs (y, exA, exB) -> (
+    let ctx1 = (y,(exA,None))::ctx in
+    Abs (y, infer ctx exA, infer ctx1 exB)
+  )
+  | Pi (y, exA, exB) -> (
+    let ctx1 = (y,(exA,None))::ctx in
+    Pi (y, infer ctx exA, infer ctx1 exB)
+  )
+  | _ -> raise (Type_error " not yet implemented")
 
 let check ctx exp1 exp2 =
   if conv ctx exp1 exp2 then () else
-    raise (Type_error "Term does not match type")
+    raise (Type_error (" Term does not match type (" ^ to_string exp1 ^ " : " ^ to_string exp2 ^ ")"))
+
+
+let () =
+  let env = ref [] in
+  let loop = ref true in
+  let file = open_out "interactive.proof" in
+  let split c s =
+    try
+      let n = String.index s c in
+      String.trim (String.sub s 0 n), String.trim (String.sub s (n+1) (String.length s - (n+1)))
+    with Not_found -> s, ""
+  in
+  while !loop do
+    try
+      print_string "? ";
+      flush_all ();
+      let cmd, arg =
+        let cmd = input_line stdin in
+        output_string file (cmd^"\n");
+        print_endline cmd;
+        split ' ' cmd
+      in
+      match cmd with
+      | "assume" ->
+        let x, sa = split ':' arg in
+        let a = of_string sa in
+        (*if alpha a Type then print_endline("good") else print_endline("bad");*)
+        check !env a Type;
+        env := (x,(a,None)) :: !env;
+        print_endline (x^" assumed of type "^to_string a)
+      | "define" ->
+        let x, st = split '=' arg in
+        let t = of_string st in
+        let a = infer !env t in
+        env := (x,(a,Some t)) :: !env;
+        print_endline (x^" defined to "^to_string t^" of type "^to_string a)
+      | "context" ->
+        print_endline (string_of_context !env)
+      | "type" ->
+        let t = of_string arg in
+        let a = infer !env t in
+        print_endline (to_string t^" is of type "^to_string a)
+      | "check" ->
+        let t, a = split '=' arg in
+        let t = of_string t in
+        let a = of_string a in
+        check !env t a;
+        print_endline "Ok."
+      | "eval" ->
+        let t = of_string arg in
+        let _ = infer !env t in
+        print_endline (to_string (normalize !env t))
+      | "exit" -> loop := false
+      | "" | "#" -> ()
+      | cmd -> print_endline ("Unknown command: "^cmd)
+    with
+    | End_of_file -> loop := false
+    | Failure err -> print_endline ("Error: "^err^".")
+    | Type_error err -> print_endline ("Typing error :"^err^".")
+    | Parsing.Parse_error -> print_endline ("Parsing error.")
+  done;
+  print_endline "Bye."
