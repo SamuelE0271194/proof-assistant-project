@@ -66,11 +66,11 @@ let rec string_of_context ctx =
     | None -> 
       var ^ " : " ^ to_string exp1 ^ "\n" ^ string_of_context l
 
-exception Type_error
+exception Type_error of string
 
 let rec in_ctx ctx var =
   match ctx with
-  | [] -> raise (Type_error)
+  | [] -> raise (Type_error ("Not in ctx"))
   | (x, (exp1, exp2)) :: l -> (
     if var = x then match exp2 with
       | Some x -> x
@@ -106,3 +106,19 @@ let rec alpha exp1 exp2 =
     (alpha e1 f12) && (alpha e2 f22)
   )
   | _ -> false (*prob not yet implemented*)
+
+let conv ctx exp1 exp2 =
+  alpha (normalize ctx exp1) (normalize ctx exp2)
+
+let rec infer ctx exp =
+  match normalize ctx exp with
+  | Type -> Type
+  | Var x -> in_ctx ctx x (*The type error is thrown from in_ctx*)
+  | App (exA, exB) -> App (infer ctx exA, infer ctx exB)
+  | Abs (y, exA, exB) -> Pi (y, infer ctx exA, infer ctx exB)
+  | Pi (_, _, _) -> Type
+  | _ -> raise (Type_error "not yet implemented")
+
+let check ctx exp1 exp2 =
+  if conv ctx exp1 exp2 then () else
+    raise (Type_error "Term does not match type")
