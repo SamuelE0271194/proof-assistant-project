@@ -6,9 +6,9 @@ let rec to_string exp =
   match exp with
   | Type -> "Type"
   | Var x -> x
-  | App (a, b) -> "(" ^ to_string a ^ " => " ^ to_string b ^ ")"
-  | Abs (a, b, c) -> "(fun (" ^ a ^ " : " ^ to_string b ^ ") -> " ^ to_string c ^ ")"
-  | Pi (a, b, c) -> "Pi(" ^ a ^ ", " ^ to_string b ^ ", " ^ to_string c ^ ")"
+  | App (inp, out) -> "(" ^ to_string inp ^ " " ^ to_string out ^ ")"
+  | Abs (x, tyX, exp) -> "(fun (" ^ x ^ " : " ^ to_string tyX ^ ") -> " ^ to_string exp ^ ")"
+  | Pi (x, tyX, tyB) -> "((" ^ x ^ " : " ^ to_string tyX ^ ") -> " ^ to_string tyB ^ ")"
   | _ -> "Not implemented yet"
 
 let fresh_constant = ref 0 ;;
@@ -17,26 +17,19 @@ let fresh_var _ =
   fresh_constant := !fresh_constant + 1;
   ("x" ^ string_of_int(!fresh_constant))
 
-let rec subst x ex1 ex2 =
+let rec subst var ex1 ex2 =
   match ex2 with 
   | Type -> Type
-  | Var var when var = x -> ex1
-  | App (exA, exB) -> App (subst x ex1 exA, subst x ex1 exB)
-  | Abs (var, exA, exB) -> (
-    match var with
-    | y when y = x -> Abs (x, exA, subst x ex1 exB)
-    | _ -> 
-      match ex2 with
-      | Var z when z = var ->
-        let new_var = fresh_var () in 
-        let new_Var = Var new_var in
-        Abs (new_var, exA, subst x ex1 (subst z new_Var ex2))
-      | _ -> Abs (var, exA, subst x ex1 exB)
+  | Var x when x = var -> ex1
+  | App (exA, exB) -> App (subst var ex1 exA, subst var ex1 exB)
+  (*Note that x does not appear in tyX*)
+  | Abs (x, tyX, exp) -> (
+    let new_var = fresh_var () in
+    Abs (new_var, subst var ex1 tyX, subst var ex1 (subst x (Var new_var) exp))
   )
-  | Pi (var, exA, exB) -> (
-    match var with
-    | y when y = x -> Pi (x, exA, exB)
-    | _ -> Pi (x, subst x ex1 exA, subst x ex1 exB)
+  | Pi (x, tyX, tyB) -> (
+    let new_var = fresh_var () in
+    Pi (new_var, subst var ex1 tyX, subst var ex1 (subst x (Var new_var) tyB))
   )
   | _ -> Type (*"not yet implemented"*)
 
@@ -52,76 +45,90 @@ let rec string_of_context ctx =
     | None -> 
       var ^ " : " ^ to_string exp1 ^ "\n" ^ string_of_context l
 
-exception Type_error of string
-
-let rec in_ctx ctx var =
-  match ctx with
-  | [] -> raise (Type_error (" Not in ctx " ^ var))
-  | (x, (exp1, exp2)) :: l -> (
-    if var = x then match exp2 with
-      | Some x -> x
-      | None -> exp1
-    else in_ctx l var
-  )
-
 let rec normalize ctx exp = 
-  match exp with 
+  (*assumed is well-typed*)
+  match exp with
   | Type -> Type
-  | Var x -> in_ctx ctx x
-  | App (exA, exB) -> (
-    match exA with
-    | Abs (y, exAbs, exBbs) -> (
-      let ctx1 = (y,(exAbs,None)) :: ctx in
-      subst y (normalize ctx1 exB) (normalize ctx1 exBbs) (*assumed that its well typed, so don't care about type of y (exAbs)*)
+  | Var x -> ( (*Expect that x is in the context since well typed*)
+    match ctx with
+    | [] -> Type (*Should never reach here, prob should replace with error*)
+    | (var, (_, exp2)) :: l -> (
+      match var with
+      | y when y = x -> (
+        match exp2 with 
+        | Some y -> y
+        | _ -> Var x
+      )
+      | _ -> normalize l (Var x)
     )
-    | _ -> App (normalize ctx exA, normalize ctx exB)
   )
-  | Abs (y, exA, exB) -> (
-    let ctx1 = (y,(exA,None)) :: ctx in
-    Abs (y, normalize ctx1 exA, normalize ctx1 exB)
+  | App (exp1, exp2) -> ( (*No need check type*)
+    match normalize ctx exp1 with 
+    | Abs (x, _, expAbs) -> normalize ctx (subst x exp2 expAbs)
+    | _ -> App (normalize ctx exp1, normalize ctx exp2) 
   )
-  | Pi (y, exA, exB) -> Pi (y, normalize ctx exA, normalize ctx exB)
-  | _ -> Type (*Not yet implemented*)
+  | Abs (x, tyX, expAbs) -> (
+    let ctx1 = (x, (tyX, None)) :: ctx in
+    Abs (x, normalize ctx tyX, normalize ctx1 expAbs)
+  )
+  | Pi (x, tyX, tyB) -> (
+    let ctx1 = (x, (tyX, None)) :: ctx in
+    Pi (x, normalize ctx tyX, normalize ctx1 tyB)
+  )
+  | _ -> Type (*Not yet implemented stuff*)
 
-let rec alpha exp1 exp2 =
+let rec alpha exp1 exp2 = 
   match (exp1, exp2) with
   | (Var v1, Var v2) -> v1 = v2
   | (App (e1, e2), App (f1, f2)) -> (alpha e1 e2) && (alpha f1 f2)
-  | (Abs (y, e1, e2), Abs(z, f1, f2)) -> (
-    let check_var = alpha e1 f1 in
-    let f22 = subst z (Var y) f2 in 
-    check_var && (alpha e2 f22)
+  | (Abs (y, tyY, e1), Abs(z, tyZ, e2)) -> (
+    let check_var = alpha tyY tyZ in
+    let sube2 = subst z (Var y) e2 in 
+    check_var && (alpha e1 sube2)
   )
-  | (Pi (y, e1, e2), Pi(z, f1, f2)) -> (
-    let f12 = subst z (Var y) f2 in 
-    let f22 = subst z (Var y) f1 in
-    (alpha e1 f12) && (alpha e2 f22)
+  | (Pi (y, tyY, ty1), Pi(z, tyZ, ty2)) -> (
+    let check_var = alpha tyY tyZ in
+    let sty2 = subst z (Var y) ty2 in
+    check_var && (alpha ty1 sty2)
   )
   | (Type, Type) -> true
-  | _ -> false (*prob not yet implemented*)
+  | _ -> false (*maybe not yet implemented *)
 
-let conv ctx exp1 exp2 =
+let conv ctx exp1 exp2 = 
   alpha (normalize ctx exp1) (normalize ctx exp2)
 
-let rec infer ctx exp =
+exception Type_error of string
+
+let rec infer ctx exp = 
   match normalize ctx exp with
   | Type -> Type
-  | Var x -> in_ctx ctx x (*The type error is thrown from in_ctx*)
-  | App (exA, exB) -> App (infer ctx exA, infer ctx exB)
-  | Abs (y, exA, exB) -> (
-    let ctx1 = (y,(exA,None))::ctx in
-    Abs (y, infer ctx exA, infer ctx1 exB)
+  | Var x -> (
+    match ctx with 
+    | [] -> raise (Type_error ("Variable <" ^ x ^ "> not in context"))
+    | (y, (tyY, _)) :: l ->
+      if (x = y) then tyY else infer l (Var x) 
+      (*I'm comparing variable names x and y, so ok to not use conv here*)
   )
-  | Pi (y, exA, exB) -> (
-    let ctx1 = (y,(exA,None))::ctx in
-    Pi (y, infer ctx exA, infer ctx1 exB)
+  | App (exp1, exp2) -> (
+    match exp1 with 
+    | Abs (x, tyX, expAbs) ->  (*x gets substiuted, so doesn't matter if it's in the ctx*)
+      if (conv ctx tyX (infer ctx exp2)) then infer ctx (subst x exp2 expAbs) else
+        raise (Type_error ("Input to function does not match function req"))
+    | _ -> App (infer ctx exp1, infer ctx exp2)
   )
-  | _ -> raise (Type_error " not yet implemented")
+  | Abs (x, tyX, expAbs) -> (
+    let ctx1 = (x, (tyX, None)) :: ctx in
+    Pi (x, tyX, infer ctx1 expAbs)
+  )
+  | Pi (_, _, _) -> Type
+  | _ -> raise (Type_error "Unknown type")
 
-let check ctx exp1 exp2 =
-  if conv ctx exp1 exp2 then () else
-    raise (Type_error (" Term does not match type (" ^ to_string exp1 ^ " : " ^ to_string exp2 ^ ")"))
-
+let check ctx exp1 exp2 = (*not infering the type of 2nd exp*)
+  if conv ctx (infer ctx exp1) (exp2) then () else (
+    print_endline(to_string (normalize ctx (infer ctx exp1)));
+    print_endline(to_string (normalize ctx (exp2)));
+    raise (Type_error "Types don't match")
+  )
 
 let () =
   let env = ref [] in
