@@ -59,7 +59,50 @@ type context = (var * (expr * expr option)) list
 let rec string_of_context ctx =
   match ctx with
   | [] -> ""
-  | (var, (exp1)) :: l -> 
-    var ^ " : " ^ to_string exp1 ^ "\n" ^ string_of_context l
   | (var, (exp1, exp2)) :: l -> 
-    var ^ " : " ^ to_string exp1 ^ " = " ^ to_string exp2 ^ "\n" ^ string_of_context l
+    match exp2 with
+    | Some x -> 
+      var ^ " : " ^ to_string exp1 ^ " = " ^ to_string x ^ "\n" ^ string_of_context l
+    | None -> 
+      var ^ " : " ^ to_string exp1 ^ "\n" ^ string_of_context l
+
+exception Type_error
+
+let rec in_ctx ctx var =
+  match ctx with
+  | [] -> raise (Type_error)
+  | (x, (exp1, exp2)) :: l -> (
+    if var = x then match exp2 with
+      | Some x -> x
+      | None -> exp1
+    else in_ctx l var
+  )
+
+let rec normalize ctx exp = 
+  match exp with 
+  | Type -> Type
+  | Var x -> in_ctx ctx x
+  | App (exA, exB) -> (
+    match exA with
+    | Abs (y, _, exBbs) -> subst y (normalize ctx exB) (normalize ctx exBbs) (*assumed that its well typed, so don't care about type of y (exAbs)*)
+    | _ -> App (normalize ctx exA, normalize ctx exB)
+  )
+  | Abs (y, exA, exB) -> Abs (y, normalize ctx exA, normalize ctx exB)
+  | Pi (y, exA, exB) -> Pi (y, normalize ctx exA, normalize ctx exB)
+  | _ -> Type (*Not yet implemented*)
+
+let rec alpha exp1 exp2 =
+  match (exp1, exp2) with
+  | (Var v1, Var v2) -> v1 = v2
+  | (App (e1, e2), App (f1, f2)) -> (alpha e1 e2) && (alpha f1 f2)
+  | (Abs (y, e1, e2), Abs(z, f1, f2)) -> (
+    let check_var = alpha e1 f1 in
+    let f22 = subst z (Var y) f2 in 
+    check_var && (alpha e2 f22)
+  )
+  | (Pi (y, e1, e2), Pi(z, f1, f2)) -> (
+    let f12 = subst z (Var y) f2 in 
+    let f22 = subst z (Var y) f1 in
+    (alpha e1 f12) && (alpha e2 f22)
+  )
+  | _ -> false (*prob not yet implemented*)
