@@ -47,6 +47,7 @@ let rec string_of_context ctx =
 
 let rec normalize ctx exp = 
   (*assumed is well-typed*)
+  (*print_endline("normalizing " ^ to_string exp);*)
   match exp with
   | Type -> Type
   | Var x -> ( (*Expect that x is in the context since well typed*)
@@ -65,6 +66,7 @@ let rec normalize ctx exp =
   | App (exp1, exp2) -> ( (*No need check type*)
     match normalize ctx exp1 with 
     | Abs (x, _, expAbs) -> normalize ctx (subst x exp2 expAbs)
+    | Pi (x, _, tyB) -> normalize ctx (subst x exp2 tyB)
     | _ -> App (normalize ctx exp1, normalize ctx exp2) 
   )
   | Abs (x, tyX, expAbs) -> (
@@ -88,19 +90,25 @@ let rec alpha exp1 exp2 =
   )
   | (Pi (y, tyY, ty1), Pi(z, tyZ, ty2)) -> (
     let check_var = alpha tyY tyZ in
-    let sty2 = subst z (Var y) ty2 in
-    check_var && (alpha ty1 sty2)
+    let new_var = fresh_var () in
+    let sty1 = subst y (Var new_var) ty1 in
+    let sty2 = subst z (Var new_var) ty2 in
+    check_var && (alpha sty1 sty2)
   )
   | (Type, Type) -> true
   | _ -> false (*maybe not yet implemented *)
 
 let conv ctx exp1 exp2 = 
+  (*print_endline("comparing");
+  print_endline(to_string exp1);
+  print_endline(to_string exp2);*)
   alpha (normalize ctx exp1) (normalize ctx exp2)
 
 exception Type_error of string
 
 let rec infer ctx exp = 
-  match normalize ctx exp with
+  (*print_endline ("infering type of " ^ to_string exp);*)
+  match exp with
   | Type -> Type
   | Var x -> (
     match ctx with 
@@ -110,11 +118,27 @@ let rec infer ctx exp =
       (*I'm comparing variable names x and y, so ok to not use conv here*)
   )
   | App (exp1, exp2) -> (
-    match exp1 with 
-    | Abs (x, tyX, expAbs) ->  (*x gets substiuted, so doesn't matter if it's in the ctx*)
-      if (conv ctx tyX (infer ctx exp2)) then infer ctx (subst x exp2 expAbs) else
-        raise (Type_error ("Input to function does not match function req"))
-    | _ -> App (infer ctx exp1, infer ctx exp2)
+    match infer ctx exp1 with 
+    | Abs (x, tyX, expAbs) -> ( (*x gets substiuted, so doesn't matter if it's in the ctx*)
+      match infer ctx exp2 with
+      | Abs (y, tyY, expAbs2) -> 
+        let ctx1 = (y, (tyY, None)) :: ctx in
+        if (conv ctx tyX (infer ctx expAbs2)) then Abs(y, tyY, infer ctx1 (subst x (Var y) expAbs)) else
+          raise (Type_error ("Input to function does not match function req"))
+      | other -> (
+        let ctx1 = (x, (tyX, None)) :: ctx in
+        if (conv ctx tyX other) then infer ctx1 expAbs else
+          raise (Type_error ("Input to function does not match function req"))
+      )
+    )
+    | Pi (_, tyX, tyB) ->
+      if (conv ctx tyX (infer ctx exp2)) then tyB else (
+        print_endline ("infering type of 1 " ^ to_string tyX);
+        print_endline ("infering type of 2 " ^ to_string exp2);
+        print_endline ("type of 2nd " ^ to_string (infer ctx exp2));
+        raise (Type_error ("wrong input type to function"))
+        )
+    | _ -> raise (Type_error "application of non function")
   )
   | Abs (x, tyX, expAbs) -> (
     let ctx1 = (x, (tyX, None)) :: ctx in
@@ -125,8 +149,6 @@ let rec infer ctx exp =
 
 let check ctx exp1 exp2 = (*not infering the type of 2nd exp*)
   if conv ctx (infer ctx exp1) (exp2) then () else (
-    print_endline(to_string (normalize ctx (infer ctx exp1)));
-    print_endline(to_string (normalize ctx (exp2)));
     raise (Type_error "Types don't match")
   )
 
