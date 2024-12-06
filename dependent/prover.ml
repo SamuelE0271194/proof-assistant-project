@@ -114,30 +114,31 @@ let rec infer ctx exp =
     match ctx with 
     | [] -> raise (Type_error ("Variable <" ^ x ^ "> not in context"))
     | (y, (tyY, _)) :: l ->
-      if (x = y) then tyY else infer l (Var x) 
+      match y with
+      | z when z = x -> tyY
       (*I'm comparing variable names x and y, so ok to not use conv here*)
+      | _ -> (infer l (Var x))
   )
   | App (exp1, exp2) -> (
     match infer ctx exp1 with 
-    | Abs (x, tyX, expAbs) -> ( (*x gets substiuted, so doesn't matter if it's in the ctx*)
+    (*Abs should not appear since we are dealing with types*)
+    | Pi (x, tyX, tyB) -> (
+      (*print_endline ("input " ^ x ^ " : " ^ to_string tyX );
+      print_endline ("exp2 " ^ " : " ^ to_string (infer ctx exp2) );
+      print_endline ("exp2 " ^ " : " ^ to_string (exp2) );*)
       match infer ctx exp2 with
-      | Abs (y, tyY, expAbs2) -> 
-        let ctx1 = (y, (tyY, None)) :: ctx in
-        if (conv ctx tyX (infer ctx expAbs2)) then Abs(y, tyY, infer ctx1 (subst x (Var y) expAbs)) else
-          raise (Type_error ("Input to function does not match function req"))
-      | other -> (
+      | Pi (y, tyY, tyC) -> (
+        let ctx1 = (y, (tyY, None)) :: ctx in 
+        let ctx1 = (x, (tyC, None)) :: ctx1 in 
+        if (conv ctx1 tyX tyC) then Pi (y, tyY, tyB) else
+          raise (Type_error "fg, g does not have output matching f input")
+      )
+      | tyC -> (
         let ctx1 = (x, (tyX, None)) :: ctx in
-        if (conv ctx tyX other) then infer ctx1 expAbs else
-          raise (Type_error ("Input to function does not match function req"))
+        if (conv ctx1 tyX tyC) then (subst x tyC tyB) else
+          raise (Type_error "fx, x does not have type matching f input")
       )
     )
-    | Pi (_, tyX, tyB) ->
-      if (conv ctx tyX (infer ctx exp2)) then tyB else (
-        print_endline ("infering type of 1 " ^ to_string tyX);
-        print_endline ("infering type of 2 " ^ to_string exp2);
-        print_endline ("type of 2nd " ^ to_string (infer ctx exp2));
-        raise (Type_error ("wrong input type to function"))
-        )
     | _ -> raise (Type_error "application of non function")
   )
   | Abs (x, tyX, expAbs) -> (
