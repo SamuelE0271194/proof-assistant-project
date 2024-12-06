@@ -9,6 +9,10 @@ let rec to_string exp =
   | App (inp, out) -> "(" ^ to_string inp ^ " " ^ to_string out ^ ")"
   | Abs (x, tyX, exp) -> "(fun (" ^ x ^ " : " ^ to_string tyX ^ ") -> " ^ to_string exp ^ ")"
   | Pi (x, tyX, tyB) -> "((" ^ x ^ " : " ^ to_string tyX ^ ") -> " ^ to_string tyB ^ ")"
+  | Nat -> "Nat"
+  | Z -> "Zero"
+  | S x -> "Suc(" ^ to_string x ^ ")"
+  | Ind (p, z, s, n) -> "Induction pred: " ^ to_string p ^ ", base: " ^ to_string z ^ ", if P(n) then P(n+1): " ^ to_string s ^ ", term: " ^ to_string n
   | _ -> "Not implemented yet"
 
 let fresh_constant = ref 0 ;;
@@ -33,6 +37,10 @@ let rec subst var ex1 ex2 =
     | varx when varx = var -> Pi (x, subst x ex1 tyX, tyB)
     | _ -> Pi (x, subst var ex1 tyX, subst var ex1 tyB)
   )
+  | Nat -> Nat
+  | Z -> Z
+  | S x -> S (subst var ex1 x)
+  | Ind (p, z, s, n) -> Ind (subst var ex1 p, subst var ex1 z, subst var ex1 s, subst var ex1 n)
   | _ -> Type (*"not yet implemented"*)
 
 type context = (var * (expr * expr option)) list
