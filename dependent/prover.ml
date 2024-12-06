@@ -20,16 +20,18 @@ let fresh_var _ =
 let rec subst var ex1 ex2 =
   match ex2 with 
   | Type -> Type
-  | Var x when x = var -> ex1
+  | Var x -> if x = var then ex1 else (ex2)
   | App (exA, exB) -> App (subst var ex1 exA, subst var ex1 exB)
   (*Note that x does not appear in tyX*)
   | Abs (x, tyX, exp) -> (
-    let new_var = fresh_var () in
-    Abs (new_var, subst var ex1 tyX, subst var ex1 (subst x (Var new_var) exp))
+    match x with
+    | varx when varx = var -> Abs (x, subst x ex1 tyX, exp)
+    | _ -> Abs (x, subst var ex1 tyX, subst var ex1 exp)
   )
   | Pi (x, tyX, tyB) -> (
-    let new_var = fresh_var () in
-    Pi (new_var, subst var ex1 tyX, subst var ex1 (subst x (Var new_var) tyB))
+    match x with
+    | varx when varx = var -> Pi (x, subst x ex1 tyX, tyB)
+    | _ -> Pi (x, subst var ex1 tyX, subst var ex1 tyB)
   )
   | _ -> Type (*"not yet implemented"*)
 
@@ -126,18 +128,9 @@ let rec infer ctx exp =
       (*print_endline ("input " ^ x ^ " : " ^ to_string tyX );
       print_endline ("exp2 " ^ " : " ^ to_string (infer ctx exp2) );
       print_endline ("exp2 " ^ " : " ^ to_string (exp2) );*)
-      match infer ctx exp2 with
-      | Pi (y, tyY, tyC) -> (
-        let ctx1 = (y, (tyY, None)) :: ctx in 
-        let ctx1 = (x, (tyC, None)) :: ctx1 in 
-        if (conv ctx1 tyX tyC) then Pi (y, tyY, tyB) else
-          raise (Type_error "fg, g does not have output matching f input")
-      )
-      | tyC -> (
-        let ctx1 = (x, (tyX, None)) :: ctx in
-        if (conv ctx1 tyX tyC) then (subst x tyC tyB) else
-          raise (Type_error "fx, x does not have type matching f input")
-      )
+      let tyC = infer ctx exp2 in 
+      if (conv ctx tyX tyC) then subst x exp2 tyB else
+        raise (Type_error "fx, x does not have type matching f input")
     )
     | _ -> raise (Type_error "application of non function")
   )
@@ -145,7 +138,14 @@ let rec infer ctx exp =
     let ctx1 = (x, (tyX, None)) :: ctx in
     Pi (x, tyX, infer ctx1 expAbs)
   )
-  | Pi (_, _, _) -> Type
+  | Pi (x, tyX, tyB) -> (
+    let tyIn = infer ctx tyB in
+    let ctx1 = (x, (tyX, None)) :: ctx in
+    let tyOut = infer ctx1 tyB in
+    if (conv ctx1 tyIn Type) && (conv ctx1 tyOut Type) then Type else
+      raise (Type_error "Input or output of Pi is not a Type")
+  )
+
   | _ -> raise (Type_error "Unknown type")
 
 let check ctx exp1 exp2 = (*not infering the type of 2nd exp*)
