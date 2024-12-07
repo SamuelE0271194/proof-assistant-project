@@ -4,3 +4,4 @@ define z = fun (z : Nat) -> Z
 define pred = fun (k : Nat) -> Ind p Z s k
 eval pred Z
 eval pred (S (S (S Z)))
+check Seq = Pi (x : Nat) -> Pi (y : Nat) -> Pi (e : x = y) -> S x = S y

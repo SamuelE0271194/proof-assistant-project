@@ -13,7 +13,9 @@ let rec to_string exp =
   | Z -> "Z"
   | S x -> "(S " ^ to_string x ^ ")"
   | Ind (p, z, s, n) -> "ind pred: " ^ to_string p ^ ", base: " ^ to_string z ^ ", if P(n) then P(n+1): " ^ to_string s ^ ", term: " ^ to_string n
-  | _ -> "Not implemented yet"
+  | Eq (e1, e2) -> "(" ^ to_string e1 ^ " = " ^ to_string e2 ^ ")"
+  | Refl e -> "Refl " ^ to_string e
+  | J (p, r, x, y, e) -> "elim p: " ^ to_string p ^ ", r: " ^ to_string r ^ ", x: " ^ to_string x ^ ", y: " ^ to_string y ^ ", e: " ^ to_string e
 
 let fresh_constant = ref 0 ;;
 
@@ -41,7 +43,9 @@ let rec subst var ex1 ex2 =
   | Z -> Z
   | S x -> S (subst var ex1 x)
   | Ind (p, z, s, n) -> Ind (subst var ex1 p, subst var ex1 z, subst var ex1 s, subst var ex1 n)
-  | _ -> Type (*"not yet implemented"*)
+  | Eq (e1, e2) -> Eq (subst var ex1 e1, subst var ex1 e2)
+  | Refl e -> Refl (subst var ex1 e)
+  | J (p, r, x, y, e) -> J (subst var ex1 p, subst var ex1 r, subst var ex1 x, subst var ex1 y, subst var ex1 e)
 
 type context = (var * (expr * expr option)) list
 
@@ -87,6 +91,7 @@ let rec normalize ctx exp =
     let ctx1 = (x, (tyX, None)) :: ctx in
     Pi (x, normalize ctx tyX, normalize ctx1 tyB)
   )
+  | Nat -> Nat
   | Z -> Z
   | S x -> S (normalize ctx x)
   (*s takes n and p(n) -> p(S(n)), note the number comes first*)
@@ -96,7 +101,13 @@ let rec normalize ctx exp =
     | S x -> normalize ctx (App (App (s, x), Ind (p, z, s, x)))
     | _ -> Ind (normalize ctx p, normalize ctx z, normalize ctx s, normalize ctx n)
   )
-  | _ -> Type (*Not yet implemented stuff*)
+  | Eq (e1, e2) -> Eq (normalize ctx e1, normalize ctx e2)
+  | Refl e -> Refl (normalize ctx e)
+  | J (p, r, x, y, e) -> (
+    match e with 
+    | Refl ex when (ex = x && x = y) -> App (r, x)
+    | _ -> J (normalize ctx p, normalize ctx r, normalize ctx x, normalize ctx y, normalize ctx e)
+  )
 
 let rec alpha exp1 exp2 = 
   match (exp1, exp2) with
@@ -122,6 +133,13 @@ let rec alpha exp1 exp2 =
   | (S x, S y) -> alpha x y
   | (Ind (p1, z1, s1, n1), Ind (p2, z2, s2, n2)) -> 
     (alpha p1 p2) && (alpha z1 z2) && (alpha s1 s2) && (alpha n1 n2)
+  | (Eq (e1, e2), Eq(f1, f2)) -> (alpha e1 f1) && (alpha e2 f2)
+  | (Refl e1, Refl e2) -> alpha e1 e2
+  | (J (p1, r1, x1, y1, e1), J (p2, r2, x2, y2, e2)) -> (alpha p1 p2) && 
+                                                        (alpha r1 r2) &&
+                                                        (alpha x1 x2) &&
+                                                        (alpha y1 y2) &&
+                                                        (alpha e1 e2) 
   | _ -> false (*maybe not yet implemented *)
 
 let conv ctx exp1 exp2 = 
@@ -196,7 +214,33 @@ let rec infer ctx exp =
           (*if not all is good and just return P(n)*)
           App (p, n)
   )
-  | _ -> raise (Type_error "Unknown type")
+  | Eq (e1, e2) -> 
+    if (conv ctx (infer ctx e1) (infer ctx e2)) then Type else
+      raise (Type_error "eq terms do not have same type")
+  | Refl e -> Eq (e, e)
+  | J (p, r, x, y, e) -> (
+    (*gonna infer type A from x*)
+    let tyA = infer ctx x in
+    (*check if y has the same type*)
+    if (not (conv ctx (infer ctx y) tyA)) then raise (Type_error "x and y have different types") 
+    else
+      let tempX = fresh_var () in
+      let tempY = fresh_var () in
+      let ctx1 = (tempX, (tyA, None)) :: ctx in
+      let ctx1 = (tempY, (tyA, None)) :: ctx1 in
+      let tyP = infer ctx p in
+      let tyR = infer ctx r in
+      (*Check type of e*)
+      let _ = infer ctx e in
+      (*Check type of p*)
+      if (not (conv ctx1 tyP (Pi (tempX, tyA, (Pi (tempY, tyA, Eq (Var tempX, Var tempY))))))) then raise (Type_error "p does not have the right type")
+      else
+        (*check type of r*)
+        if (not (conv ctx1 tyR (Pi (tempX, tyA, (infer ctx (App( App( App(p, x), x), (Refl x)))))))) then raise (Type_error "proof r does not have the right type")
+        else 
+          (*check type of e*)
+          App( App( App(p, x), y), e)
+  )
 
 let check ctx exp1 exp2 = (*not infering the type of 2nd exp*)
   if conv ctx (infer ctx exp1) (exp2) then () else (
