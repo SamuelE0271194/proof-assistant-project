@@ -10,9 +10,9 @@ let rec to_string exp =
   | Abs (x, tyX, exp) -> "(fun (" ^ x ^ " : " ^ to_string tyX ^ ") -> " ^ to_string exp ^ ")"
   | Pi (x, tyX, tyB) -> "((" ^ x ^ " : " ^ to_string tyX ^ ") -> " ^ to_string tyB ^ ")"
   | Nat -> "Nat"
-  | Z -> "Zero"
-  | S x -> "Suc(" ^ to_string x ^ ")"
-  | Ind (p, z, s, n) -> "Induction pred: " ^ to_string p ^ ", base: " ^ to_string z ^ ", if P(n) then P(n+1): " ^ to_string s ^ ", term: " ^ to_string n
+  | Z -> "Z"
+  | S x -> "(S " ^ to_string x ^ ")"
+  | Ind (p, z, s, n) -> "ind pred: " ^ to_string p ^ ", base: " ^ to_string z ^ ", if P(n) then P(n+1): " ^ to_string s ^ ", term: " ^ to_string n
   | _ -> "Not implemented yet"
 
 let fresh_constant = ref 0 ;;
@@ -87,9 +87,15 @@ let rec normalize ctx exp =
     let ctx1 = (x, (tyX, None)) :: ctx in
     Pi (x, normalize ctx tyX, normalize ctx1 tyB)
   )
+  | Z -> Z
   | S x -> S (normalize ctx x)
-  | Ind (p, z, s, n) -> 
-    Ind (normalize ctx p, normalize ctx z, normalize ctx s, normalize ctx n)
+  (*s takes n and p(n) -> p(S(n)), note the number comes first*)
+  | Ind (p, z, s, n) -> (
+    match n with
+    | Z -> z
+    | S x -> normalize ctx (App (App (s, x), Ind (p, z, s, x)))
+    | _ -> Ind (normalize ctx p, normalize ctx z, normalize ctx s, normalize ctx n)
+  )
   | _ -> Type (*Not yet implemented stuff*)
 
 let rec alpha exp1 exp2 = 
@@ -119,9 +125,9 @@ let rec alpha exp1 exp2 =
   | _ -> false (*maybe not yet implemented *)
 
 let conv ctx exp1 exp2 = 
-  print_endline("comparing");
+  (*print_endline("comparing");
   print_endline(to_string (normalize ctx exp1));
-  print_endline(to_string (normalize ctx exp2));
+  print_endline(to_string (normalize ctx exp2));*)
   alpha (normalize ctx exp1) (normalize ctx exp2)
 
 exception Type_error of string
@@ -169,22 +175,26 @@ let rec infer ctx exp =
     raise (Type_error "Successor to non Nat")
   | Ind (p, z, s, n) -> (
     (*first check if n is nat*)
-    if (not (conv ctx Nat (infer ctx n))) then raise (Type_error "recursing on non Nat") else
+    if (not (conv ctx Nat (infer ctx n))) then raise (Type_error "recursing on non Nat") 
+    else
       let tyP = infer ctx p in
       let tyZ = infer ctx z in
       let tyS = infer ctx s in
       (*check if P takes Nat -> Type*)
       let tempN = fresh_var () in
-      if (not (conv ctx (Pi (tempN, Nat, Type)) tyP)) then raise (Type_error "Pred does not have correct type") else
-        (*check base case*)
-        if (not (conv ctx (App (p, Z)) tyZ)) then raise (Type_error "Base case does not match p(Z)") else
-          (*check suc*)
-          let tempN = fresh_var() in
-          let tempH = fresh_var() in
-          let prfHyp = Pi (tempH, App (p, Var tempN), App (p, S (Var tempN))) in
-          if (not (conv ctx (Pi (tempN, Nat, prfHyp)) tyS)) then raise (Type_error "induction term type does not match") else
-            (*if not all is good and just return P(n)*)
-            infer ctx (App (p, n))
+      (*check base case*) 
+      if (not (conv ctx (Pi (tempN, Nat, Type)) tyP)) then raise (Type_error "Pred does not have correct type") 
+      else if 
+        (not (conv ctx (App (p, Z)) tyZ)) then raise (Type_error "Base case does not match p(Z)") 
+      else
+        (*check suc n -> P(n) -> P(s(n))*)
+        let tempN = fresh_var() in
+        let tempH = fresh_var() in
+        let prfHyp = Pi (tempH, App (p, Var tempN), App (p, S (Var tempN))) in
+        if (not (conv ctx (Pi (tempN, Nat, prfHyp)) tyS)) then raise (Type_error "induction term type does not match") 
+        else
+          (*if not all is good and just return P(n)*)
+          App (p, n)
   )
   | _ -> raise (Type_error "Unknown type")
 

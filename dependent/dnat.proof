@@ -1,4 +1,6 @@
-define p = fun (n : Nat ) -> (Pi (r : Nat) -> Nat)
-define s = fun (m : Nat) -> Nat
+define p = fun (n : Nat) -> Nat
+define s = fun (m : Nat) -> (fun (l : Nat) -> m)
 define z = fun (z : Nat) -> Z
 define pred = fun (k : Nat) -> Ind p Z s k
+eval pred Z
+eval pred (S (S (S Z)))
