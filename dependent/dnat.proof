@@ -4,4 +4,29 @@ define z = fun (z : Nat) -> Z
 define pred = fun (k : Nat) -> Ind p Z s k
 eval pred Z
 eval pred (S (S (S Z)))
+
+define p = fun (n : Nat) -> Nat
+define s = fun (k : Nat) -> (fun (r : Nat) -> (S r))
+define add = fun (a : Nat) -> fun (b : Nat) -> Ind p b s a
+eval add (S (S (S Z))) (S (S (S (S Z))))
+
+define pSeq = fun (x : Nat) -> (fun (y : Nat) -> (fun (e : x = y) -> ((S x) = (S y))))
+define rSeq = fun (x : Nat) -> Refl (S x)
+define Seq = fun (x : Nat) -> fun (y : Nat) -> fun (e : x = y) -> J pSeq rSeq x y e
 check Seq = Pi (x : Nat) -> Pi (y : Nat) -> Pi (e : x = y) -> S x = S y
+
+define pZadd = fun (x : Nat) -> fun (y : Nat) -> fun (e : x = y) -> (add Z x) = y
+define rZadd = fun (x : Nat) -> Refl (x)
+define Zadd = fun (x : Nat) -> J pZadd rZadd x x (Refl x)
+check Zadd = Pi (n : Nat) -> add Z n = n
+
+define paddZ = fun (x : Nat) -> fun (y : Nat) -> fun (e : x = y) -> (add x Z) = y
+define pind = fun (n : Nat) -> (add n Z) = n
+define sind = fun (k : Nat) -> fun (e : (add k Z) = k) -> Seq (add k Z) k e
+define raddZ = fun (x : Nat) -> Ind pind (Refl Z) sind x
+define addZ = fun (x : Nat) -> J paddZ raddZ x x (Refl x)
+check addZ = Pi (n : Nat) -> add n Z = n
+
+define addAsso = fun (x : Nat) -> fun (y : Nat) -> fun (z : Nat) -> (add (add x y) z) = (add x (add y z))
+check addAsso = Pi (n : Nat) -> Pi (m : Nat) -> Pi (l : Nat) -> (add (add n m) l) = (add n (add m l))
+

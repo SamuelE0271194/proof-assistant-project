@@ -144,8 +144,10 @@ let rec alpha exp1 exp2 =
 
 let conv ctx exp1 exp2 = 
   (*print_endline("comparing");
-  print_endline(to_string (normalize ctx exp1));
-  print_endline(to_string (normalize ctx exp2));*)
+  print_endline("exp1 : " ^ to_string exp1) ;
+  print_endline("exp2 : " ^ to_string exp2);
+  print_endline("nexp1 : " ^ to_string (normalize ctx exp1));
+  print_endline("nexp2 : " ^ to_string (normalize ctx exp2));*)
   alpha (normalize ctx exp1) (normalize ctx exp2)
 
 exception Type_error of string
@@ -226,19 +228,20 @@ let rec infer ctx exp =
     else
       let tempX = fresh_var () in
       let tempY = fresh_var () in
+      let tempE = fresh_var () in
       let ctx1 = (tempX, (tyA, None)) :: ctx in
       let ctx1 = (tempY, (tyA, None)) :: ctx1 in
+      let ctx1 = (tempE, (Eq (Var tempX, Var tempY), None)) :: ctx1 in
       let tyP = infer ctx p in
       let tyR = infer ctx r in
       (*Check type of e*)
       let _ = infer ctx e in
       (*Check type of p*)
-      if (not (conv ctx1 tyP (Pi (tempX, tyA, (Pi (tempY, tyA, Eq (Var tempX, Var tempY))))))) then raise (Type_error "p does not have the right type")
+      if (not (conv ctx1 (Pi (tempX, tyA, (Pi (tempY, tyA, Pi (tempE, Eq (Var tempX, Var tempY), Type))))) tyP)) then raise (Type_error "p does not have the right type")
       else
         (*check type of r*)
-        if (not (conv ctx1 tyR (Pi (tempX, tyA, (infer ctx (App( App( App(p, x), x), (Refl x)))))))) then raise (Type_error "proof r does not have the right type")
+        if (not (conv ctx1 (Pi (tempX, tyA, (App( App( App(p, Var tempX), Var tempX), (Refl x))))) tyR)) then raise (Type_error "proof r does not have the right type")
         else 
-          (*check type of e*)
           App( App( App(p, x), y), e)
   )
 
