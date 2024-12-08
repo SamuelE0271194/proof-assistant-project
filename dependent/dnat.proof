@@ -27,6 +27,4 @@ define raddZ = fun (x : Nat) -> Ind pind (Refl Z) sind x
 define addZ = fun (x : Nat) -> J paddZ raddZ x x (Refl x)
 check addZ = Pi (n : Nat) -> add n Z = n
 
-define addAsso = fun (x : Nat) -> fun (y : Nat) -> fun (z : Nat) -> (add (add x y) z) = (add x (add y z))
-check addAsso = Pi (n : Nat) -> Pi (m : Nat) -> Pi (l : Nat) -> (add (add n m) l) = (add n (add m l))
 
