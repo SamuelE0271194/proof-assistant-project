@@ -81,24 +81,31 @@ let rec normalize ctx exp =
     match normalize ctx exp1 with 
     | Abs (x, _, expAbs) -> normalize ctx (subst x exp2 expAbs)
     | Pi (x, _, tyB) -> normalize ctx (subst x exp2 tyB)
-    | _ -> App (normalize ctx exp1, normalize ctx exp2) 
+    | _ -> 
+      App (normalize ctx exp1, normalize ctx exp2) 
   )
   | Abs (x, tyX, expAbs) -> (
-    let ctx1 = (x, (tyX, None)) :: ctx in
-    Abs (x, normalize ctx tyX, normalize ctx1 expAbs)
+    let new_var = fresh_var () in
+    let ctx1 = (new_var, (tyX, None)) :: ctx in
+    Abs (new_var, normalize ctx tyX, normalize ctx1 (subst x (Var new_var) expAbs))
   )
   | Pi (x, tyX, tyB) -> (
-    let ctx1 = (x, (tyX, None)) :: ctx in
-    Pi (x, normalize ctx tyX, normalize ctx1 tyB)
+    let new_var = fresh_var () in
+    let ctx1 = (new_var, (tyX, None)) :: ctx in
+    Pi (new_var, normalize ctx tyX, normalize ctx1 (subst x (Var new_var) tyB))
   )
   | Nat -> Nat
   | Z -> Z
   | S x -> S (normalize ctx x)
   (*s takes n and p(n) -> p(S(n)), note the number comes first*)
   | Ind (p, z, s, n) -> (
-    match n with
-    | Z -> z
-    | S x -> normalize ctx (App (App (s, x), Ind (p, z, s, x)))
+    let np = normalize ctx p in
+    let nz = normalize ctx z in
+    let ns = normalize ctx s in
+    let nn = normalize ctx n in
+    match nn with
+    | Z -> nz
+    | S x -> normalize ctx (App (App (ns, x), Ind (np, nz, ns, x)))
     | _ -> Ind (normalize ctx p, normalize ctx z, normalize ctx s, normalize ctx n)
   )
   | Eq (e1, e2) -> Eq (normalize ctx e1, normalize ctx e2)
@@ -111,21 +118,46 @@ let rec normalize ctx exp =
 
 let rec alpha exp1 exp2 = 
   match (exp1, exp2) with
-  | (Var v1, Var v2) -> v1 = v2
-  | (App (e1, e2), App (f1, f2)) -> (alpha e1 e2) && (alpha f1 f2)
+  | (Var v1, Var v2) -> if (v1 = v2) then true else (
+    print_endline("Var : " ^ to_string exp1);
+    print_endline("~~~~~~~~~~~~~");
+    print_endline("Var : " ^ to_string exp2);
+    print_endline("------------");
+    false
+  )
+  | (App (e1, e2), App (f1, f2)) -> if ((alpha e1 e2) && (alpha f1 f2)) then true else (
+    print_endline("Application :" ^ to_string exp1);
+    print_endline("~~~~~~~~~~~~~");
+    print_endline("Application :" ^ to_string exp2);
+    print_endline("------------");
+    false
+  )
+
   | (Abs (y, tyY, e1), Abs(z, tyZ, e2)) -> (
     let check_var = alpha tyY tyZ in
     let new_var = fresh_var () in
     let sube1 = subst y (Var new_var) e1 in 
     let sube2 = subst z (Var new_var) e2 in 
-    check_var && (alpha sube1 sube2)
+    if (check_var && (alpha sube1 sube2)) then true else (
+      print_endline("Abstraction :" ^ to_string exp1);
+      print_endline("~~~~~~~~~~~~~");
+      print_endline("Abstraction :" ^ to_string exp2);
+      print_endline("------------");
+      false
+    )
   )
   | (Pi (y, tyY, ty1), Pi(z, tyZ, ty2)) -> (
     let check_var = alpha tyY tyZ in
     let new_var = fresh_var () in
     let sty1 = subst y (Var new_var) ty1 in
     let sty2 = subst z (Var new_var) ty2 in
-    check_var && (alpha sty1 sty2)
+    if (check_var && (alpha sty1 sty2)) then true else (
+      print_endline("Pi : " ^ to_string exp1);
+      print_endline("~~~~~~~~~~~~~");
+      print_endline("Pi : " ^ to_string exp2);
+      print_endline("------------");
+      false
+    )
   )
   | (Type, Type) -> true
   | (Nat, Nat) -> true
@@ -140,14 +172,22 @@ let rec alpha exp1 exp2 =
                                                         (alpha x1 x2) &&
                                                         (alpha y1 y2) &&
                                                         (alpha e1 e2) 
-  | _ -> false (*maybe not yet implemented *)
+  | _ -> 
+    print_endline("somehow here"); (*maybe not yet implemented *)
+    print_endline("!!!!!!!");
+    print_endline("exp1 : " ^ to_string exp1);
+    print_endline("!!!!!!!");
+    print_endline("exp2 : " ^ to_string exp2);
+    print_endline("!!!!!!!");
+    false
 
 let conv ctx exp1 exp2 = 
   (*print_endline("comparing");
   print_endline("exp1 : " ^ to_string exp1) ;
   print_endline("exp2 : " ^ to_string exp2);
   print_endline("nexp1 : " ^ to_string (normalize ctx exp1));
-  print_endline("nexp2 : " ^ to_string (normalize ctx exp2));*)
+  print_endline("nexp2 : " ^ to_string (normalize ctx exp2));
+  print_endline("------------");*)
   alpha (normalize ctx exp1) (normalize ctx exp2)
 
 exception Type_error of string
@@ -179,13 +219,15 @@ let rec infer ctx exp =
     | _ -> raise (Type_error "application of non function")
   )
   | Abs (x, tyX, expAbs) -> (
-    let ctx1 = (x, (tyX, None)) :: ctx in
-    Pi (x, tyX, infer ctx1 expAbs)
+    let new_var = fresh_var () in
+    let ctx1 = (new_var, (tyX, None)) :: ctx in
+    Pi (new_var, tyX, infer ctx1 (subst x (Var new_var) expAbs))
   )
   | Pi (x, tyX, tyB) -> (
+    let new_var = fresh_var () in
     let tyIn = infer ctx tyB in
-    let ctx1 = (x, (tyX, None)) :: ctx in
-    let tyOut = infer ctx1 tyB in
+    let ctx1 = (new_var, (tyX, None)) :: ctx in
+    let tyOut = infer ctx1 (subst x (Var new_var) tyB) in
     if (conv ctx1 tyIn Type) && (conv ctx1 tyOut Type) then Type else
       raise (Type_error "Input or output of Pi is not a Type")
   )

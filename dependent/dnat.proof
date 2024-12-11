@@ -14,12 +14,12 @@ define pSeq = fun (x : Nat) -> (fun (y : Nat) -> (fun (e : x = y) -> ((S x) = (S
 define rSeq = fun (x : Nat) -> Refl (S x)
 define Seq = fun (x : Nat) -> fun (y : Nat) -> fun (e : x = y) -> J pSeq rSeq x y e
 check Seq = Pi (x : Nat) -> Pi (y : Nat) -> Pi (e : x = y) -> S x = S y
-
+  
 define pZadd = fun (x : Nat) -> fun (y : Nat) -> fun (e : x = y) -> (add Z x) = y
 define rZadd = fun (x : Nat) -> Refl (x)
 define Zadd = fun (x : Nat) -> J pZadd rZadd x x (Refl x)
 check Zadd = Pi (n : Nat) -> add Z n = n
-
+  
 define paddZ = fun (x : Nat) -> fun (y : Nat) -> fun (e : x = y) -> (add x Z) = y
 define pind = fun (n : Nat) -> (add n Z) = n
 define sind = fun (k : Nat) -> fun (e : (add k Z) = k) -> Seq (add k Z) k e
@@ -27,4 +27,9 @@ define raddZ = fun (x : Nat) -> Ind pind (Refl Z) sind x
 define addZ = fun (x : Nat) -> J paddZ raddZ x x (Refl x)
 check addZ = Pi (n : Nat) -> add n Z = n
 
+define paddAsso = fun (y : Nat) -> fun (z : Nat) -> fun (x : Nat) -> (add (add x y) z) = (add x (add y z))
+define zaddAsso = fun (y : Nat) -> fun (z : Nat) -> Refl (add y z)
+define saddAsso = fun (y : Nat) -> fun (z : Nat) -> fun (x : Nat) -> fun (hyp : paddAsso y z x) -> Seq (add (add x y) z) (add x (add y z)) hyp
+define addAsso = fun (x : Nat) -> fun (y : Nat) -> fun (z : Nat) -> Ind (paddAsso y z) (zaddAsso y z) (saddAsso y z) x
+check addAsso = Pi (x : Nat) -> Pi (y : Nat) -> Pi (z : Nat) -> (add (add x y) z) = (add x (add y z))
 
