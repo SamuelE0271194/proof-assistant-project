@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <meta name="author" content="Samuel Hon" />
+  <title>Report for the proof assistant project</title>
+  <style type="text/css">
+      code{white-space: pre-wrap;}
+      span.smallcaps{font-variant: small-caps;}
+      span.underline{text-decoration: underline;}
+      div.column{display: inline-block; vertical-align: top; width: 50%;}
+  </style>
+  <style type="text/css">
+a.sourceLine { display: inline-block; line-height: 1.25; }
+a.sourceLine { pointer-events: none; color: inherit; text-decoration: inherit; }
+a.sourceLine:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode { white-space: pre; position: relative; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+code.sourceCode { white-space: pre-wrap; }
+a.sourceLine { text-indent: -1em; padding-left: 1em; }
+}
+pre.numberSource a.sourceLine
+  { position: relative; left: -4em; }
+pre.numberSource a.sourceLine::before
+  { content: attr(title);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; pointer-events: all; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+    color: #aaaaaa;
+  }
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+div.sourceCode
+  {  }
+@media screen {
+a.sourceLine::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+code span.at { color: #7d9029; } /* Attribute */
+code span.bn { color: #40a070; } /* BaseN */
+code span.bu { } /* BuiltIn */
+code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+code span.ch { color: #4070a0; } /* Char */
+code span.cn { color: #880000; } /* Constant */
+code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+code span.dt { color: #902000; } /* DataType */
+code span.dv { color: #40a070; } /* DecVal */
+code span.er { color: #ff0000; font-weight: bold; } /* Error */
+code span.ex { } /* Extension */
+code span.fl { color: #40a070; } /* Float */
+code span.fu { color: #06287e; } /* Function */
+code span.im { } /* Import */
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+code span.op { color: #666666; } /* Operator */
+code span.ot { color: #007020; } /* Other */
+code span.pp { color: #bc7a00; } /* Preprocessor */
+code span.sc { color: #4070a0; } /* SpecialChar */
+code span.ss { color: #bb6688; } /* SpecialString */
+code span.st { color: #4070a0; } /* String */
+code span.va { color: #19177c; } /* Variable */
+code span.vs { color: #4070a0; } /* VerbatimString */
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">Report for the <em>proof assistant project</em></h1>
+<p class="author">Samuel Hon</p>
+</header>
+<p>The report below is a summary of the proof assisatnt project.</p>
+<h1 id="what-was-implemented-in-the-project">What was implemented in the project</h1>
+<p>In the project, I managed to implement all the all the requirerd portions except for the associativity and commutativity of multiplication. The code is primarly divided into 2 sections, one for simple types and another for dependent types. Both proof assistants the support for logical connectives as well as natural numbers. Along side the main implementaiton, there are also error messages explaining the errors when writing the proof, which can hint the user on what would be an appropriate blank to fill in, this is further elaborated in the later sections.</p>
+<h2 id="simple-types">Simple types</h2>
+<p>Simple types are defined as follows</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode ocaml"><code class="sourceCode ocaml"><a class="sourceLine" id="cb1-1" title="1"><span class="co">(** Type variables. *)</span></a>
+<a class="sourceLine" id="cb1-2" title="2"><span class="kw">type</span> tvar = <span class="dt">string</span></a>
+<a class="sourceLine" id="cb1-3" title="3"><span class="kw">type</span> ty =</a>
+<a class="sourceLine" id="cb1-4" title="4">  | Var <span class="kw">of</span> tvar</a>
+<a class="sourceLine" id="cb1-5" title="5">  | Imp <span class="kw">of</span> ty * ty</a>
+<a class="sourceLine" id="cb1-6" title="6">  | Conj <span class="kw">of</span> ty * ty</a>
+<a class="sourceLine" id="cb1-7" title="7">  | Truth</a>
+<a class="sourceLine" id="cb1-8" title="8">  | Disj <span class="kw">of</span> ty * ty</a>
+<a class="sourceLine" id="cb1-9" title="9">  | False</a>
+<a class="sourceLine" id="cb1-10" title="10">  | Unit</a>
+<a class="sourceLine" id="cb1-11" title="11">  | Nat</a></code></pre></div>
+<p>Here we define a type (in ocaml) tvar which is just a string, this is done so we are able to distinguish between the various strings which may appear later on. For the remaining simple types, they are defined as a type (in ocaml) as ty, the types and their defintions are as follows : 1. Var - which takes a tvar(string) as input, this is simple a name to call the various types we encounter 2. Imp - whch takes two types (A, B), this represents an implication between simple types (A -&gt; B) 3. Conj - which takes two types (A, B), this represents a conjunction (A B) 4. Truth - a type for truth which is represented as “T” when printed. 5. Disj - which takes two types (A, B), this represents a disjunction (A B) 6. False - a type for false represetned by “⊥” 7. Unit - a type for unit represented by “()” 8. Nat - a type for natural numbers</p>
+<p>In addition to the types there are also the terms defined as follows</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode ocaml"><code class="sourceCode ocaml"><a class="sourceLine" id="cb2-1" title="1"><span class="kw">type</span> var = <span class="dt">string</span></a>
+<a class="sourceLine" id="cb2-2" title="2"><span class="kw">type</span> tm =</a>
+<a class="sourceLine" id="cb2-3" title="3">  | Varm <span class="kw">of</span> var</a>
+<a class="sourceLine" id="cb2-4" title="4">  | Appm <span class="kw">of</span> tm * tm</a>
+<a class="sourceLine" id="cb2-5" title="5">  | Absm <span class="kw">of</span> var * ty * tm</a>
+<a class="sourceLine" id="cb2-6" title="6">  | Pairm <span class="kw">of</span> tm * tm</a>
+<a class="sourceLine" id="cb2-7" title="7">  | Fstm <span class="kw">of</span> tm</a>
+<a class="sourceLine" id="cb2-8" title="8">  | Sndm <span class="kw">of</span> tm</a>
+<a class="sourceLine" id="cb2-9" title="9">  | Casem <span class="kw">of</span> tm * var * tm * var *tm </a>
+<a class="sourceLine" id="cb2-10" title="10">  | Rcasem <span class="kw">of</span> tm * ty</a>
+<a class="sourceLine" id="cb2-11" title="11">  | Lcasem <span class="kw">of</span> tm * ty</a>
+<a class="sourceLine" id="cb2-12" title="12">  | Trum</a>
+<a class="sourceLine" id="cb2-13" title="13">  | Falm <span class="kw">of</span> tm * ty</a>
+<a class="sourceLine" id="cb2-14" title="14">  | Unitm</a>
+<a class="sourceLine" id="cb2-15" title="15">  | Zero</a>
+<a class="sourceLine" id="cb2-16" title="16">  | Suc <span class="kw">of</span> tm</a>
+<a class="sourceLine" id="cb2-17" title="17">  | Rec <span class="kw">of</span> tm * tm * var * var * tm </a></code></pre></div>
+<p>Here we introduce a new type var which is just a string, but it serves to distinguish between strings and variables for terms, as tvar does for types. For the remaining terms, they are defined as follows : 1. Varm - which takes a var(string), this representation for the terms which are introduced or encountered 2. Appm - taking 2 terms (a, b), this is a representation of a being applied to b “a(b)” 3. Absm - taking a var, a type and a term (x, ty, tm), this represents an abstraction with x being the name of the arbitrary variable in the term, ty being the type of x, and tm being the term which depends on x. “x (type ty) -&gt; tm(x)” 4. Pairm - taking two terms (a, b), this is a representation of a pair (b b) 5. Fstm - taking a Pairm(tm) (a, b), which represents the first term of the pair (a) 6. Sndm - taking a Pairm(tm) (a, b), which represents the second term of the pari (b) 6. Casem - taking a term (t) and variables with terms bounded to them (x -&gt; u) (y -&gt; v), which is a representation of case analysis 7. Rcasem - taking a term and type, which represents the right case of a Casem term 8. Lcasem - taking a term and type, which represents the left case of a Casem term 9. Trum - representing the truth term 10. Falm - which takes a term (a) and type (A), and represents a proof of A (which is anything) given that a is false. 11. Unitm - representing the unit term 12. Zero - the term representing the natural number 0 13. Suc - taking a term (n) (in particular a natural number), representing the successor of n 14. Rec - taking 2 terms (t, u), 2 variables (x, y) and another term (v), representing the recursor function for natural numbers</p>
+<p>Using the proof assistant however would not require the knowledge of the terms and types above, but simply their existences. In the context of using the proof assistant, you can run</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode bash"><code class="sourceCode bash"><a class="sourceLine" id="cb3-1" title="1"><span class="co">#Interactive mode </span></a>
+<a class="sourceLine" id="cb3-2" title="2"><span class="fu">make</span> manual</a>
+<a class="sourceLine" id="cb3-3" title="3"><span class="co">#Proof from a file</span></a>
+<a class="sourceLine" id="cb3-4" title="4"><span class="fu">make</span> proof</a></code></pre></div>
+<p>where the manual mode will allow the user to manually type in the commands while proof mode allows the user to input a file, and running the commands in the file.</p>
+<p>Firstly we need a statement to prove. The full list of syntaxes available are in the lexer.mll file The various commands available are : 1. exact, which takes an input variable, if the input variable is in the context, and the type of the variable corresponds to the type we are trying to prove, it completes the proof 2. intro, if the type we are trying to prove has type - Imp, then it also demands an input variable, it then associates the variable to the input type of the implication, and then asks for a proof of the output type of the implication - Conj, then it requests a proof for the first and second variable - Truth, then it introduces a proof of true - Nat, then in also demands an input variable (which has to be a natural number in the context). If the variable is 0, then in introduces a proof of 0, if the variable is a successor of something (call it n), then it asks for a proof of n 3. fst, which takes an input variable, if the variable is in the context and is of a type conj, it checks if the first term of the conjunction has the same type as the type we are trying to proof, and completes the proof if the type matches. 4. snd, which does the same things as fst, but just on the second type of the conjunction. 5. left, if the type we are proving is a disjunction, it asks for a proof of the left term 6. right, the same as left, but for the right term of disjunction. 7. elim, which requires at least an input, and if the first input has type - Imp, it checks the input type of the implication with the type we are trying to prove, if it matches, it only requires a proof of the output type of the Implication. - Disj, it gives a new variable in the context with type of the right term of the disjunction, after it has been used, it gives another variable with the type of the left term of the disjunction. - False, it returns a proof of false - Nat, it then requires 4 other arguments (in total 5), the base case, 2 variable x and y, and the recursion function which depends on x and y. It then asks for a proof of the base case, as well as the recursion function, given the variables x and y provided. If all the proves are given, it completes the proof of the first input (of type Nat) 8. cut, which takes a variable, and introduces a the variable as a part of the functon.</p>
+<p>Lets say we’d like to prove the commutativity of the and operator, then the following statements is a proof of the statement.</p>
+<pre><code>A /\ B =&gt; B /\ A
+intro x
+intro
+snd x
+fst x</code></pre>
+<h2 id="dependent-types">Dependent types</h2>
+<p>…</p>
+<h1 id="difficulties-encountered">Difficulties encountered</h1>
+<p>One of the biggest difficulties encountered was in the normalization of terms. There were many points in this project where the proofs I provided were not being accepted by the assistant. However when inspecting the outputs, it was usually the result of certain terms remaining in their unnormalized form. While it may seem like a simple fix, to just simple normalize the output where needed, it did not seem obvious when I was coding the project. There were certain outputs which already seemed normalized, as the outputs were composed of normalized terms. However it was necessary to then normalize the term as a whole as there might be further normalization that could occur in the composition.</p>
+<h1 id="implementation-choices">Implementation choices</h1>
+<p>Detail</p>
+<h1 id="possible-extensions">Possible extensions</h1>
+<p>Imagine</p>
+<h1 id="conclusion">Conclusion</h1>
+<p>Conclude</p>
+<p>Explain. You can write inline code <code class="sourceCode ocaml"><span class="kw">let</span> x = <span class="dv">4</span></code> or cite paragraphs of your code</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode ocaml"><code class="sourceCode ocaml"><a class="sourceLine" id="cb5-1" title="1"><span class="kw">let</span> <span class="kw">rec</span> f x =</a>
+<a class="sourceLine" id="cb5-2" title="2">  <span class="kw">let</span> y = x + x <span class="kw">in</span></a>
+<a class="sourceLine" id="cb5-3" title="3">  y * y</a></code></pre></div>
+<p>you have words in <em>italic</em> or in <strong>bold</strong>.</p>
+</body>
+</html>
