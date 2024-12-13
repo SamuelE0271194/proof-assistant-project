@@ -113,10 +113,32 @@ intro
 snd x
 fst x
 ```
+The various proof for the different parts of the assignment are in the folders Part2/Part3_proofs
 
 ## Dependent types
 
-...
+In the case of dependent types, the inital types are all already provided in the assignment document, as such I will not dwell on them too much.
+Instead the focus of this section will be to explain how to use the dependent type prover.
+As with the case of the simple prover, there syntaxes available are in the lexer.mll file, the commands are the same as well, you just have to ensure that you are in the correct directory.
+The various commands that are available are also explained in the assignment document.
+
+There is a complete proof of the associativity and commutativity of addition in the dnat.proof file, as well as a few auxilary function.
+The proof of multiplicaiton however is incomplete. 
+
+A brief explaination of how the prover works :
+```
+define pp = fun (n : Nat) -> Nat
+define sp = fun (m : Nat) -> (fun (l : Nat) -> m)
+define pred = fun (k : Nat) -> Ind pp Z sp k
+eval pred Z
+eval pred (S (S (S Z)))
+```
+the following commands is a construction of the predecessor function. Here we want to define the predecessor function using induction, as such we begin by defining:
+1.  pp, the predicate, which is of type Nat -> Type.
+2.  sp, the step function, which given m and pp(m) gives a proof of pp(S(m)), where S(m) is the successor of m.
+3.  pred, the induction on the natural number k. Here Ind is a function which takes the predicate pp, base case (which we set to Zero), step function sp, and k the variable do induction on.
+
+There is a similar function for equality, which is the J function, which is also explained in the assignment docuement.
 
 # Difficulties encountered
 
@@ -127,27 +149,39 @@ While it may seem like a simple fix, to just simple normalize the output where n
 There were certain outputs which already seemed normalized, as the outputs were composed of normalized terms.
 However it was necessary to then normalize the term as a whole as there might be further normalization that could occur in the composition.
 
+In addition to the bugs that appeared in the proof assistant, at times the proves for the functions were also difficult to check. 
+Some proves which seemed obvious to me were not evident to the prover, and left me asking if it was an issue with the prover, or was the proof provided not sufficient.
+This however could be remedied by back checking with another proof assistant, such as agda, where if it worked with agda, I could deduce that there was a bug in my implementation.
+
 # Implementation choices
 
-Detail
+Most implementation choices in the simple type prove assistant are detailed in the simple types section.
+
+Some additional implementation choices for dependent types made here were to add error comments when ever there was clear problems with a proof. 
+For example, if we tried to apply a natural number to a function which takes in boolean types. 
+This helps explicitly tell the user where in the proof is problem and what should be the correct input type.
+This is especially useful, if we don't know what to proof.
+We can simply put in an arbitrary function, (fun (x : Nat) -> x) for example, and see what the prover returns. 
+Here the prover will explicitly tell us what we need to prove, letting us know what we should be proving.
 
 # Possible extensions
 
-Imagine
+Some quality of life improvements:
+1.  Most outputs has did not have too many variables, as most intermediate variables are not present in the final representation.
+A simple quality of life:w
+ improvement would be to relable the final variables into something more readable. 
+2.  A graphical user interface would also be a great quality of life, listing out the various definitions available as blocks, which can then be connected using the various functions.
+
+More technical improvements:  
+1.  Automatic prover (For both the simple and dependent type). It became clear at a certain point that the prover actually tells us what we need to prove.
+If the necessary definitions are available in the context it shouldn't be difficult to implement a brute force search on the available defintions to find a possible solution.
+Being a brute force approach here would inevitably result in a larger computation time. Which would the require implementations of better and smarter search algorithms.
+2.  Mathematical equation converter, as well as support for more symbols and notations.
+It is much easier to write some of the results out on paper than its coded counterpart. 
+Having a mathematical equation interpreter would save a lot of time in the conversion of notation.
 
 # Conclusion
 
-Conclude
-
-
-
-Explain. You can write inline code `let x = 4`{.ocaml} or cite paragraphs of your code
-
-```ocaml
-let rec f x =
-  let y = x + x in
-  y * y
-```
-
-you have words in _italic_ or in **bold**.
-
+In conclusion, this was a pretty fun project. 
+Despite being stuck for many hours on a single question, the pleasure from resolving the problem was very enlightining.
+There are many points for improvements in this project, however with the limited time as well as other concurrent project make it difficult to finish.

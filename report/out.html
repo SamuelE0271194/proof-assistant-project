@@ -130,20 +130,32 @@ intro x
 intro
 snd x
 fst x</code></pre>
+<p>The various proof for the different parts of the assignment are in the folders Part2/Part3_proofs</p>
 <h2 id="dependent-types">Dependent types</h2>
-<p>…</p>
+<p>In the case of dependent types, the inital types are all already provided in the assignment document, as such I will not dwell on them too much. Instead the focus of this section will be to explain how to use the dependent type prover. As with the case of the simple prover, there syntaxes available are in the lexer.mll file, the commands are the same as well, you just have to ensure that you are in the correct directory. The various commands that are available are also explained in the assignment document.</p>
+<p>There is a complete proof of the associativity and commutativity of addition in the dnat.proof file, as well as a few auxilary function. The proof of multiplicaiton however is incomplete.</p>
+<p>A brief explaination of how the prover works :</p>
+<pre><code>define pp = fun (n : Nat) -&gt; Nat
+define sp = fun (m : Nat) -&gt; (fun (l : Nat) -&gt; m)
+define pred = fun (k : Nat) -&gt; Ind pp Z sp k
+eval pred Z
+eval pred (S (S (S Z)))</code></pre>
+<p>the following commands is a construction of the predecessor function. Here we want to define the predecessor function using induction, as such we begin by defining: 1. pp, the predicate, which is of type Nat -&gt; Type. 2. sp, the step function, which given m and pp(m) gives a proof of pp(S(m)), where S(m) is the successor of m. 3. pred, the induction on the natural number k. Here Ind is a function which takes the predicate pp, base case (which we set to Zero), step function sp, and k the variable do induction on.</p>
+<p>There is a similar function for equality, which is the J function, which is also explained in the assignment docuement.</p>
 <h1 id="difficulties-encountered">Difficulties encountered</h1>
 <p>One of the biggest difficulties encountered was in the normalization of terms. There were many points in this project where the proofs I provided were not being accepted by the assistant. However when inspecting the outputs, it was usually the result of certain terms remaining in their unnormalized form. While it may seem like a simple fix, to just simple normalize the output where needed, it did not seem obvious when I was coding the project. There were certain outputs which already seemed normalized, as the outputs were composed of normalized terms. However it was necessary to then normalize the term as a whole as there might be further normalization that could occur in the composition.</p>
+<p>In addition to the bugs that appeared in the proof assistant, at times the proves for the functions were also difficult to check. Some proves which seemed obvious to me were not evident to the prover, and left me asking if it was an issue with the prover, or was the proof provided not sufficient. This however could be remedied by back checking with another proof assistant, such as agda, where if it worked with agda, I could deduce that there was a bug in my implementation.</p>
 <h1 id="implementation-choices">Implementation choices</h1>
-<p>Detail</p>
+<p>Most implementation choices in the simple type prove assistant are detailed in the simple types section.</p>
+<p>Some additional implementation choices for dependent types made here were to add error comments when ever there was clear problems with a proof. For example, if we tried to apply a natural number to a function which takes in boolean types. This helps explicitly tell the user where in the proof is problem and what should be the correct input type. This is especially useful as if we don’t know what to proof, we can simply put in an arbitrary function (fun (x : Nat) -&gt; x) for example, and see what the prover returns</p>
 <h1 id="possible-extensions">Possible extensions</h1>
 <p>Imagine</p>
 <h1 id="conclusion">Conclusion</h1>
 <p>Conclude</p>
 <p>Explain. You can write inline code <code class="sourceCode ocaml"><span class="kw">let</span> x = <span class="dv">4</span></code> or cite paragraphs of your code</p>
-<div class="sourceCode" id="cb5"><pre class="sourceCode ocaml"><code class="sourceCode ocaml"><a class="sourceLine" id="cb5-1" title="1"><span class="kw">let</span> <span class="kw">rec</span> f x =</a>
-<a class="sourceLine" id="cb5-2" title="2">  <span class="kw">let</span> y = x + x <span class="kw">in</span></a>
-<a class="sourceLine" id="cb5-3" title="3">  y * y</a></code></pre></div>
+<div class="sourceCode" id="cb6"><pre class="sourceCode ocaml"><code class="sourceCode ocaml"><a class="sourceLine" id="cb6-1" title="1"><span class="kw">let</span> <span class="kw">rec</span> f x =</a>
+<a class="sourceLine" id="cb6-2" title="2">  <span class="kw">let</span> y = x + x <span class="kw">in</span></a>
+<a class="sourceLine" id="cb6-3" title="3">  y * y</a></code></pre></div>
 <p>you have words in <em>italic</em> or in <strong>bold</strong>.</p>
 </body>
 </html>
