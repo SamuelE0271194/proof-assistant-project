@@ -267,7 +267,7 @@ let rec infer ctx exp =
         if (not (conv ctx (Pi (tempN, Nat, prfHyp)) tyS)) then raise (Type_error "induction term type does not match") 
         else
           (*if not all is good and just return P(n)*)
-          normalize ctx App (p, n)
+          normalize ctx (App (p, n))
   )
   | Eq (e1, e2) -> 
     if (conv ctx (infer ctx e1) (infer ctx e2)) then Type else (
