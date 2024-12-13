@@ -3,7 +3,7 @@ title: Report for the _proof assistant project_
 author: Samuel Hon
 ---
 
-The report below is a summary of the proof assisatnt project.
+The report below is a summary of the proof assistant project.
 
 # What was implemented in the project
 In the project, I managed to implement all the all the requirerd portions except for the associativity and commutativity of multiplication. 
