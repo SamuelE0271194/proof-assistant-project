@@ -1,0 +1,21 @@
+define p = fun (n : Nat) -> Nat
+define s = fun (k : Nat) -> (fun (r : Nat) -> (S r))
+define add = fun (a : Nat) -> fun (b : Nat) -> Ind p b s a
+
+define pm = fun (n : Nat) -> fun (m : Nat) -> Nat
+define zm = fun (n : Nat) -> Z
+define sm = fun (n : Nat) -> fun (m : Nat) -> fun (hyp : pm n m) -> (add n hyp)
+define mul = fun (m : Nat) -> fun (n : Nat) -> Ind (pm n) (zm n) (sm n) m
+eval mul (S (S (S Z))) (S (S  Z))
+
+define pSeq = fun (x : Nat) -> (fun (y : Nat) -> (fun (e : x = y) -> ((S x) = (S y))))
+define rSeq = fun (x : Nat) -> Refl (S x)
+define Seq = fun (x : Nat) -> fun (y : Nat) -> fun (e : x = y) -> J pSeq rSeq x y e
+check Seq = Pi (x : Nat) -> Pi (y : Nat) -> Pi (e : x = y) -> S x = S y
+
+define pmulAsso = fun (y : Nat) -> fun (z : Nat) -> fun (x : Nat) -> (mul (mul x y) z) = (mul x (mul y z))
+define zmulAsso = fun (y : Nat) -> fun (z : Nat) -> Refl (Z)
+define smulAsso = fun (y : Nat) -> fun (z : Nat) -> fun (x : Nat) -> fun (hyp : pmulAsso y z x) -> Seq (mul (mul x y) z) (mul x (mul y z)) hyp
+define mulAsso = fun (x : Nat) -> fun (y : Nat) -> fun (z : Nat) -> Ind (pmulAsso y z) (zmulAsso y z) (smulAsso y z) x
+check mulAsso = Pi (x : Nat) -> Pi (y : Nat) -> Pi (z : Nat) -> (mul (mul x y) z) = (mul x (mul y z))
+

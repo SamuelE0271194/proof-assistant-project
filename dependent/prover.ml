@@ -30,13 +30,15 @@ let rec subst var ex1 ex2 =
   | App (exA, exB) -> App (subst var ex1 exA, subst var ex1 exB)
   (*Note that x does not appear in tyX*)
   | Abs (x, tyX, exp) -> (
+    let new_var = fresh_var () in
     match x with
-    | varx when varx = var -> Abs (x, subst x ex1 tyX, exp)
+    | varx when varx = var -> Abs (new_var, tyX, subst x (Var new_var) exp) (*when x is the var we are subsituting*)
     | _ -> Abs (x, subst var ex1 tyX, subst var ex1 exp)
   )
   | Pi (x, tyX, tyB) -> (
+    let new_var = fresh_var () in
     match x with
-    | varx when varx = var -> Pi (x, subst x ex1 tyX, tyB)
+    | varx when varx = var -> Pi (new_var, tyX, subst x (Var new_var) tyB)
     | _ -> Pi (x, subst var ex1 tyX, subst var ex1 tyB)
   )
   | Nat -> Nat
@@ -111,9 +113,12 @@ let rec normalize ctx exp =
   | Eq (e1, e2) -> Eq (normalize ctx e1, normalize ctx e2)
   | Refl e -> Refl (normalize ctx e)
   | J (p, r, x, y, e) -> (
+    let nx = normalize ctx x in
+    let ny = normalize ctx y in
+    let ne = normalize ctx e in
     match e with 
-    | Refl ex when (ex = x && x = y) -> App (r, x)
-    | _ -> J (normalize ctx p, normalize ctx r, normalize ctx x, normalize ctx y, normalize ctx e)
+    | Refl ex when ((ex = nx) && (ex = ny)) -> normalize ctx (App (r, nx))
+    | _ -> J (p, r, nx, ny, ne)
   )
 
 let rec alpha exp1 exp2 = 
@@ -173,7 +178,7 @@ let rec alpha exp1 exp2 =
                                                         (alpha y1 y2) &&
                                                         (alpha e1 e2) 
   | _ -> 
-    print_endline("somehow here"); (*maybe not yet implemented *)
+    print_endline("Not matching types"); (*maybe not yet implemented *)
     print_endline("!!!!!!!");
     print_endline("exp1 : " ^ to_string exp1);
     print_endline("!!!!!!!");
@@ -213,10 +218,13 @@ let rec infer ctx exp =
       print_endline ("exp2 " ^ " : " ^ to_string (infer ctx exp2) );
       print_endline ("exp2 " ^ " : " ^ to_string (exp2) );*)
       let tyC = infer ctx exp2 in 
-      if (conv ctx tyX tyC) then subst x exp2 tyB else
+      if (conv ctx tyX tyC) then (normalize ctx (subst x exp2 tyB)) else
         raise (Type_error "fx, x does not have type matching f input")
     )
-    | _ -> raise (Type_error "application of non function")
+    | _ -> 
+      print_endline ("exp1 " ^ " : " ^ to_string (exp1) );
+      print_endline ("exp2 " ^ " : " ^ to_string (infer ctx exp2) );
+      raise (Type_error "application of non function")
   )
   | Abs (x, tyX, expAbs) -> (
     let new_var = fresh_var () in
@@ -225,11 +233,14 @@ let rec infer ctx exp =
   )
   | Pi (x, tyX, tyB) -> (
     let new_var = fresh_var () in
-    let tyIn = infer ctx tyB in
+    let tyIn = infer ctx tyX in
     let ctx1 = (new_var, (tyX, None)) :: ctx in
     let tyOut = infer ctx1 (subst x (Var new_var) tyB) in
-    if (conv ctx1 tyIn Type) && (conv ctx1 tyOut Type) then Type else
+    if (conv ctx1 tyIn Type) && (conv ctx1 tyOut Type) then Type else (
+      print_endline ("input :" ^ to_string(tyIn));
+      print_endline ("output :" ^ to_string(tyOut));
       raise (Type_error "Input or output of Pi is not a Type")
+    )
   )
   | Nat -> Type
   | Z -> Nat
@@ -256,11 +267,15 @@ let rec infer ctx exp =
         if (not (conv ctx (Pi (tempN, Nat, prfHyp)) tyS)) then raise (Type_error "induction term type does not match") 
         else
           (*if not all is good and just return P(n)*)
-          App (p, n)
+          normalize ctx App (p, n)
   )
   | Eq (e1, e2) -> 
-    if (conv ctx (infer ctx e1) (infer ctx e2)) then Type else
+    if (conv ctx (infer ctx e1) (infer ctx e2)) then Type else (
+      print_endline ("exp : " ^ to_string (exp));
+      print_endline ("exp1 : " ^ to_string (infer ctx e1));
+      print_endline ("exp2 : " ^ to_string (infer ctx e2));
       raise (Type_error "eq terms do not have same type")
+    )
   | Refl e -> Eq (e, e)
   | J (p, r, x, y, e) -> (
     (*gonna infer type A from x*)
@@ -284,7 +299,7 @@ let rec infer ctx exp =
         (*check type of r*)
         if (not (conv ctx1 (Pi (tempX, tyA, (App( App( App(p, Var tempX), Var tempX), (Refl x))))) tyR)) then raise (Type_error "proof r does not have the right type")
         else 
-          App( App( App(p, x), y), e)
+          normalize ctx (App( App( App(p, x), y), e))
   )
 
 let check ctx exp1 exp2 = (*not infering the type of 2nd exp*)

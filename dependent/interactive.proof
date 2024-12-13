@@ -1,13 +1,12 @@
-define p = fun (n : Nat) -> Nat
-define s = fun (m : Nat) -> (fun (l : Nat) -> m)
-define z = fun (z : Nat) -> Z
-define pred = fun (k : Nat) -> Ind p Z s k
+define pp = fun (n : Nat) -> Nat
+define sp = fun (m : Nat) -> (fun (l : Nat) -> m)
+define pred = fun (k : Nat) -> Ind pp Z sp k
 eval pred Z
 eval pred (S (S (S Z)))
 
-define p = fun (n : Nat) -> Nat
-define s = fun (k : Nat) -> (fun (r : Nat) -> (S r))
-define add = fun (a : Nat) -> fun (b : Nat) -> Ind p b s a
+define ps = fun (n : Nat) -> Nat
+define ss = fun (k : Nat) -> (fun (r : Nat) -> (S r))
+define add = fun (a : Nat) -> fun (b : Nat) -> Ind ps b ss a
 eval add (S (S (S Z))) (S (S (S (S Z))))
 
 define pSeq = fun (x : Nat) -> (fun (y : Nat) -> (fun (e : x = y) -> ((S x) = (S y))))
@@ -32,3 +31,26 @@ define zaddAsso = fun (y : Nat) -> fun (z : Nat) -> Refl (add y z)
 define saddAsso = fun (y : Nat) -> fun (z : Nat) -> fun (x : Nat) -> fun (hyp : paddAsso y z x) -> Seq (add (add x y) z) (add x (add y z)) hyp
 define addAsso = fun (x : Nat) -> fun (y : Nat) -> fun (z : Nat) -> Ind (paddAsso y z) (zaddAsso y z) (saddAsso y z) x
 check addAsso = Pi (x : Nat) -> Pi (y : Nat) -> Pi (z : Nat) -> (add (add x y) z) = (add x (add y z))
+
+define padd1 = fun (y : Nat) -> fun (x : Nat) -> (S (add x y) = add x (S y))
+define zadd1 = fun (y : Nat) -> Refl (S y)
+define sadd1 = fun (y : Nat) -> fun (x : Nat) -> fun (hyp : padd1 y x) -> Seq (S (add x y)) (add x (S y))  hyp
+define add1 = fun (x : Nat) -> fun (y : Nat) -> Ind (padd1 y) (zadd1 y) (sadd1 y) x
+check add1 = Pi (x : Nat) -> Pi (y : Nat) -> (S (add x y)) = (add x (S y))
+
+define psym = fun (x : Nat) -> fun (y : Nat) -> fun (e : x = y) -> y = x
+define rsym = fun (x : Nat) -> Refl x
+define sym = fun (x : Nat) -> fun (y : Nat) -> fun (e : x = y) -> J psym rsym x y e
+check sym = Pi (x : Nat) -> Pi (y : Nat) -> Pi (e : x = y) -> y = x
+
+define ptransNat = fun (x : Nat) -> fun (y : Nat) -> fun (e1 : x = y) -> (Pi (z : Nat) -> (Pi (e2 : y = z) -> (x = z)))
+define rtransNat = fun (x : Nat) -> (fun (z : Nat) -> fun (e : x = z) -> e)
+define transNat = fun (x : Nat) -> fun (y : Nat) -> fun (z : Nat) -> fun (e1 : x = y) -> fun (e2 : y = z) -> (J ptransNat (rtransNat) x y e1) z e2
+check transNat = Pi (x : Nat) -> Pi (y : Nat) -> Pi (z : Nat) -> Pi (e1 : x = y) -> Pi (e2 : y = z) -> x = z
+
+define paddComm = fun (y : Nat) -> fun (x : Nat) -> (add x y) = (add y x)
+define zaddComm = fun (y : Nat) -> transNat (add Z y) y (add y Z) (Zadd y) (sym (add y Z) y (addZ y))
+define saddComm = fun (y : Nat) -> fun (x : Nat) -> fun (hyp : paddComm y x) -> transNat (S (add x y)) (S (add y x)) (add y (S x)) (Seq (add x y) (add y x) hyp) (add1 y x)
+define addComm = fun (x : Nat) -> fun (y : Nat) -> Ind (paddComm y) (zaddComm y) (saddComm y) x
+check addComm = Pi (x : Nat) -> Pi (y : Nat) -> (add x y) = (add y x)
+exit
