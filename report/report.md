@@ -185,3 +185,4 @@ Having a mathematical equation interpreter would save a lot of time in the conve
 In conclusion, this was a pretty fun project. 
 Despite being stuck for many hours on a single question, the pleasure from resolving the problem was very enlightining.
 There are many points for improvements in this project, however with the limited time as well as other concurrent project make it difficult to finish.
+Having done this project, I have really learnt a lot more about the inner workings of OCaml as well as Agda, giving me a better apprectiation and understanding of how these functional programming languages work.
